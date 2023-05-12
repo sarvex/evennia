@@ -86,9 +86,7 @@ class CmdBoot(COMMAND_DEFAULT_CLASS):
                 return
             # we have a bootable object with a connected user
             matches = SESSIONS.sessions_from_account(pobj)
-            for match in matches:
-                boot_list.append(match)
-
+            boot_list.extend(iter(matches))
         if not boot_list:
             caller.msg("No matching sessions found. The Account does not seem to be online.")
             return
@@ -189,8 +187,10 @@ class CmdBan(COMMAND_DEFAULT_CLASS):
         if not banlist:
             banlist = []
 
-        if not self.args or (
-            self.switches and not any(switch in ("ip", "name") for switch in self.switches)
+        if (
+            not self.args
+            or self.switches
+            and all(switch not in ("ip", "name") for switch in self.switches)
         ):
             self.caller.msg(list_bans(self, banlist))
             return
@@ -202,23 +202,22 @@ class CmdBan(COMMAND_DEFAULT_CLASS):
         else:
             ban = self.args
         ban = ban.lower()
-        ipban = IPREGEX.findall(ban)
-        if not ipban:
-            # store as name
-            typ = "Name"
-            bantup = (ban, "", "", now, reason)
-        else:
+        if ipban := IPREGEX.findall(ban):
             # an ip address.
             typ = "IP"
             ban = ipban[0]
             # replace * with regex form and compile it
             ipregex = ban.replace(".", "\.")
             ipregex = ipregex.replace("*", "[0-9]{1,3}")
-            ipregex = re.compile(r"%s" % ipregex)
+            ipregex = re.compile(f"{ipregex}")
             bantup = ("", ban, ipregex, now, reason)
 
+        else:
+            # store as name
+            typ = "Name"
+            bantup = (ban, "", "", now, reason)
         ret = yield (f"Are you sure you want to {typ}-ban '|w{ban}|n' [Y]/N?")
-        if str(ret).lower() in ("no", "n"):
+        if str(ret).lower() in {"no", "n"}:
             self.caller.msg("Aborted.")
             return
 
@@ -271,10 +270,10 @@ class CmdUnban(COMMAND_DEFAULT_CLASS):
         else:
             # all is ok, ask, then clear ban
             ban = banlist[num - 1]
-            value = (" ".join([s for s in ban[:2]])).strip()
+            value = " ".join(list(ban[:2])).strip()
 
             ret = yield (f"Are you sure you want to unban {num}: '|w{value}|n' [Y]/N?")
-            if str(ret).lower() in ("n", "no"):
+            if str(ret).lower() in {"n", "no"}:
                 self.caller.msg("Aborted.")
                 return
 
@@ -320,8 +319,7 @@ class CmdEmit(COMMAND_DEFAULT_CLASS):
         args = self.args
 
         if not args:
-            string = "Usage: "
-            string += "\nemit[/switches] [<obj>, <obj>, ... =] <message>"
+            string = "Usage: " + "\nemit[/switches] [<obj>, <obj>, ... =] <message>"
             string += "\nremit           [<obj>, <obj>, ... =] <message>"
             string += "\npemit           [<obj>, <obj>, ... =] <message>"
             caller.msg(string)
@@ -332,12 +330,12 @@ class CmdEmit(COMMAND_DEFAULT_CLASS):
         send_to_contents = "contents" in self.switches
 
         # we check which command was used to force the switches
-        if self.cmdstring == "remit":
-            rooms_only = True
-            send_to_contents = True
-        elif self.cmdstring == "pemit":
+        if self.cmdstring == "pemit":
             accounts_only = True
 
+        elif self.cmdstring == "remit":
+            rooms_only = True
+            send_to_contents = True
         if not self.rhs:
             message = self.args
             objnames = [caller.location.key]

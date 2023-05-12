@@ -392,8 +392,7 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
 
         """
         for session in make_iter(session):
-            obj = session.puppet
-            if obj:
+            if obj := session.puppet:
                 # do the disconnect, but only if we are the last session to puppet
                 obj.at_pre_unpuppet()
                 obj.sessions.remove(session)
@@ -437,7 +436,9 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
                 by this Account.
 
         """
-        return list(set(session.puppet for session in self.sessions.all() if session.puppet))
+        return list(
+            {session.puppet for session in self.sessions.all() if session.puppet}
+        )
 
     def __get_single_puppet(self):
         """
@@ -480,13 +481,13 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
 
         # Check IP and/or name bans
         bans = ServerConfig.objects.conf("server_bans")
-        if bans and (
-            any(tup[0] == username for tup in bans if username)
-            or any(tup[2].match(ip) for tup in bans if ip and tup[2])
-        ):
-            return True
-
-        return False
+        return bool(
+            bans
+            and (
+                any(tup[0] == username for tup in bans if username)
+                or any(tup[2].match(ip) for tup in bans if ip and tup[2])
+            )
+        )
 
     @classmethod
     def get_username_validators(
@@ -558,9 +559,7 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
             # read and/or fill up your disk.
             return None, errors
 
-        # Check IP and/or name bans
-        banned = cls.is_banned(username=username, ip=ip)
-        if banned:
+        if banned := cls.is_banned(username=username, ip=ip):
             # this is a banned IP or name!
             errors.append(
                 _(
@@ -585,9 +584,7 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
             if ip:
                 LOGIN_THROTTLE.update(ip, _("Too many authentication failures."))
 
-            # Try to call post-failure hook
-            session = kwargs.get("session", None)
-            if session:
+            if session := kwargs.get("session", None):
                 account = AccountDB.objects.get_account_from_name(username)
                 if account:
                     account.at_failed_login(session)
@@ -650,11 +647,7 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
                 errors.extend(e.messages)
 
         # Disqualify if any check failed
-        if False in valid:
-            valid = False
-        else:
-            valid = True
-
+        valid = False not in valid
         return valid, errors
 
     @classmethod
@@ -823,9 +816,7 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
             errors.extend(errs)
             return None, errors
 
-        # Check IP and/or name bans
-        banned = cls.is_banned(username=username, ip=ip)
-        if banned:
+        if banned := cls.is_banned(username=username, ip=ip):
             # this is a banned IP or name!
             string = _(
                 "|rYou have been banned and cannot continue from here."
@@ -967,7 +958,7 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
         kwargs["options"] = options
 
         if text is not None:
-            if not (isinstance(text, str) or isinstance(text, tuple)):
+            if not (isinstance(text, (str, tuple))):
                 # sanitize text before sending across the wire
                 try:
                     text = to_str(text)
@@ -1150,10 +1141,13 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
 
         """
         # handle me, self and *me, *self
-        if isinstance(searchdata, str):
-            # handle wrapping of common terms
-            if searchdata.lower() in ("me", "*me", "self", "*self"):
-                return self
+        if isinstance(searchdata, str) and searchdata.lower() in (
+            "me",
+            "*me",
+            "self",
+            "*self",
+        ):
+            return self
         searchdata = self.nicks.nickreplace(
             searchdata, categories=("account",), include_account=False
         )
@@ -1218,8 +1212,7 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
         Returns the idle time of the least idle session in seconds. If
         no sessions are connected it returns nothing.
         """
-        idle = [session.cmd_last_visible for session in self.sessions.all()]
-        if idle:
+        if idle := [session.cmd_last_visible for session in self.sessions.all()]:
             return time.time() - float(max(idle))
         return None
 
@@ -1229,8 +1222,7 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
         Returns the maximum connection time of all connected sessions
         in seconds. Returns nothing if there are no sessions.
         """
-        conn = [session.conn_time for session in self.sessions.all()]
-        if conn:
+        if conn := [session.conn_time for session in self.sessions.all()]:
             return time.time() - float(min(conn))
         return None
 
@@ -1436,10 +1428,7 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
             else:
                 _CONNECT_CHANNEL = False
 
-        if settings.USE_TZ:
-            now = timezone.localtime()
-        else:
-            now = timezone.now()
+        now = timezone.localtime() if settings.USE_TZ else timezone.now()
         now = "%02i-%02i-%02i(%02i:%02i)" % (now.year, now.month, now.day, now.hour, now.minute)
         if _MUDINFO_CHANNEL:
             _MUDINFO_CHANNEL.msg(f"[{now}]: {message}")
@@ -1644,7 +1633,7 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
                 return f"{target} has no in-game appearance."
 
         # multiple targets - this is a list of characters
-        characters = list(tar for tar in target if tar) if target else []
+        characters = [tar for tar in target if tar] if target else []
         ncars = len(characters)
         sessions = self.sessions.all()
         nsess = len(sessions)
@@ -1682,8 +1671,7 @@ class DefaultAccount(AccountDB, metaclass=TypeclassBase):
 
             char_strings = []
             for char in characters:
-                csessions = char.sessions.all()
-                if csessions:
+                if csessions := char.sessions.all():
                     for sess in csessions:
                         # character is already puppeted
                         sid = sess in sessions and sessions.index(sess) + 1
@@ -1824,8 +1812,7 @@ class DefaultGuest(DefaultAccount):
         be on the safe side.
         """
         super().at_server_shutdown()
-        characters = self.db._playable_characters
-        if characters:
+        if characters := self.db._playable_characters:
             for character in characters:
                 if character:
                     character.delete()

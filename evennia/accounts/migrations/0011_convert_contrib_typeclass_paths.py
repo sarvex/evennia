@@ -52,7 +52,7 @@ def convert_contrib_typeclass_paths(apps, schema_editor):
         try:
             package_path = obj.db_typeclass_path.split(".")[2:]
             package_name = package_path[0]
-            if package_path[0] == "security":
+            if package_name == "security":
                 # renamed package and changed path
                 package_name = "auditing"
                 package_path.pop(0)  # no longer security/auditing

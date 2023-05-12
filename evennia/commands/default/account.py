@@ -61,16 +61,14 @@ class MuxAccountLookCommand(COMMAND_DEFAULT_CLASS):
         super().parse()
 
         playable = self.account.db._playable_characters
-        if playable is not None:
-            # clean up list if character object was deleted in between
-            if None in playable:
-                playable = [character for character in playable if character]
-                self.account.db._playable_characters = playable
+        if playable is not None and None in playable:
+            playable = [character for character in playable if character]
+            self.account.db._playable_characters = playable
         # store playable property
         if self.args:
-            self.playable = dict((utils.to_str(char.key.lower()), char) for char in playable).get(
-                self.args.lower(), None
-            )
+            self.playable = {
+                utils.to_str(char.key.lower()): char for char in playable
+            }.get(self.args.lower(), None)
         else:
             self.playable = playable
 
@@ -151,16 +149,15 @@ class CmdCharCreate(COMMAND_DEFAULT_CLASS):
         key = self.lhs
         desc = self.rhs
 
-        if _MAX_NR_CHARACTERS is not None:
-            if (
-                not account.is_superuser
-                and not account.check_permstring("Developer")
-                and account.db._playable_characters
-                and len(account.db._playable_characters) >= _MAX_NR_CHARACTERS
-            ):
-                plural = "" if _MAX_NR_CHARACTERS == 1 else "s"
-                self.msg(f"You may only have a maximum of {_MAX_NR_CHARACTERS} character{plural}.")
-                return
+        if _MAX_NR_CHARACTERS is not None and (
+            not account.is_superuser
+            and not account.check_permstring("Developer")
+            and account.db._playable_characters
+            and len(account.db._playable_characters) >= _MAX_NR_CHARACTERS
+        ):
+            plural = "" if _MAX_NR_CHARACTERS == 1 else "s"
+            self.msg(f"You may only have a maximum of {_MAX_NR_CHARACTERS} character{plural}.")
+            return
         from evennia.objects.models import ObjectDB
 
         typeclass = settings.BASE_CHARACTER_TYPECLASS
@@ -360,8 +357,12 @@ class CmdIC(COMMAND_DEFAULT_CLASS):
             return
         if len(character_candidates) > 1:
             self.msg(
-                "Multiple targets with the same name:\n %s"
-                % ", ".join("%s(#%s)" % (obj.key, obj.id) for obj in character_candidates)
+                (
+                    "Multiple targets with the same name:\n %s"
+                    % ", ".join(
+                        f"{obj.key}(#{obj.id})" for obj in character_candidates
+                    )
+                )
             )
             return
         else:
@@ -616,7 +617,7 @@ class CmdOption(COMMAND_DEFAULT_CLASS):
                     options["SCREENWIDTH"] = options["SCREENWIDTH"][0]
                 else:
                     options["SCREENWIDTH"] = "  \n".join(
-                        "%s : %s" % (screenid, size)
+                        f"{screenid} : {size}"
                         for screenid, size in options["SCREENWIDTH"].items()
                     )
             if "SCREENHEIGHT" in options:
@@ -624,7 +625,7 @@ class CmdOption(COMMAND_DEFAULT_CLASS):
                     options["SCREENHEIGHT"] = options["SCREENHEIGHT"][0]
                 else:
                     options["SCREENHEIGHT"] = "  \n".join(
-                        "%s : %s" % (screenid, size)
+                        f"{screenid} : {size}"
                         for screenid, size in options["SCREENHEIGHT"].items()
                     )
             options.pop("TTYPE", None)
@@ -638,7 +639,7 @@ class CmdOption(COMMAND_DEFAULT_CLASS):
                     changed = (
                         "|y*|n" if key in saved_options and flags[key] != saved_options[key] else ""
                     )
-                    row.append("%s%s" % (saved, changed))
+                    row.append(f"{saved}{changed}")
                 table.add_row(*row)
             self.msg(f"|wClient settings ({self.session.protocol_key}):|n\n{table}|n")
 
@@ -662,7 +663,7 @@ class CmdOption(COMMAND_DEFAULT_CLASS):
             return {0: int(new_size)}
 
         def validate_bool(new_bool):
-            return True if new_bool.lower() in ("true", "on", "1") else False
+            return new_bool.lower() in ("true", "on", "1")
 
         def update(new_name, new_val, validator):
             # helper: update property and report errors
@@ -710,7 +711,7 @@ class CmdOption(COMMAND_DEFAULT_CLASS):
         if val and name in validators:
             optiondict = update(name, val, validators[name])
         else:
-            self.msg("|rNo option named '|w%s|r'." % name)
+            self.msg(f"|rNo option named '|w{name}|r'.")
         if optiondict:
             # a valid setting
             if "save" in self.switches:
@@ -858,16 +859,14 @@ class CmdColorTest(COMMAND_DEFAULT_CLASS):
             return [[]]
 
         extra_space = 1
-        max_widths = [max([len(str(val)) for val in col]) for col in table]
-        ftable = []
-        for irow in range(len(table[0])):
-            ftable.append(
-                [
-                    str(col[irow]).ljust(max_widths[icol]) + " " * extra_space
-                    for icol, col in enumerate(table)
-                ]
-            )
-        return ftable
+        max_widths = [max(len(str(val)) for val in col) for col in table]
+        return [
+            [
+                str(col[irow]).ljust(max_widths[icol]) + " " * extra_space
+                for icol, col in enumerate(table)
+            ]
+            for irow in range(len(table[0]))
+        ]
 
     def func(self):
         """Show color tables"""
@@ -880,11 +879,11 @@ class CmdColorTest(COMMAND_DEFAULT_CLASS):
             # ansi colors
             # show all ansi color-related codes
             bright_fg = [
-                "%s%s|n" % (code, code.replace("|", "||"))
+                f'{code}{code.replace("|", "||")}|n'
                 for code, _ in ap.ansi_map[self.slice_bright_fg]
             ]
             dark_fg = [
-                "%s%s|n" % (code, code.replace("|", "||"))
+                f'{code}{code.replace("|", "||")}|n'
                 for code, _ in ap.ansi_map[self.slice_dark_fg]
             ]
             dark_bg = [
@@ -931,15 +930,15 @@ class CmdColorTest(COMMAND_DEFAULT_CLASS):
                 for igray in range(6):
                     letter = chr(97 + (ibatch * 6 + igray))
                     inverse = chr(122 - (ibatch * 6 + igray))
-                    table[0 + igray].append("|=%s%s |n" % (letter, "||=%s" % letter))
-                    table[6 + igray].append("|=%s|[=%s%s |n" % (inverse, letter, "||[=%s" % letter))
+                    table[0 + igray].append(f"|={letter}||={letter} |n")
+                    table[6 + igray].append(f"|={inverse}|[={letter}||[={letter} |n")
             for igray in range(6):
                 # the last row (y, z) has empty columns
                 if igray < 2:
                     letter = chr(121 + igray)
                     inverse = chr(98 - igray)
-                    fg = "|=%s%s |n" % (letter, "||=%s" % letter)
-                    bg = "|=%s|[=%s%s |n" % (inverse, letter, "||[=%s" % letter)
+                    fg = f"|={letter}||={letter} |n"
+                    bg = f"|={inverse}|[={letter}||[={letter} |n"
                 else:
                     fg, bg = " ", " "
                 table[0 + igray].append(fg)
@@ -980,8 +979,7 @@ class CmdQuell(COMMAND_DEFAULT_CLASS):
     def _recache_locks(self, account):
         """Helper method to reset the lockhandler on an already puppeted object"""
         if self.session:
-            char = self.session.puppet
-            if char:
+            if char := self.session.puppet:
                 # we are already puppeting an object. We need to reset
                 # the lock caches (otherwise the superuser status change
                 # won't be visible until repuppet)
@@ -992,7 +990,9 @@ class CmdQuell(COMMAND_DEFAULT_CLASS):
         """Perform the command"""
         account = self.account
         permstr = (
-            account.is_superuser and "(superuser)" or "(%s)" % ", ".join(account.permissions.all())
+            "(superuser)"
+            if account.is_superuser
+            else f'({", ".join(account.permissions.all())})'
         )
         if self.cmdstring in ("unquell", "unquell"):
             if not account.attributes.get("_quell"):
@@ -1007,7 +1007,7 @@ class CmdQuell(COMMAND_DEFAULT_CLASS):
             account.attributes.add("_quell", True)
             puppet = self.session.puppet if self.session else None
             if puppet:
-                cpermstr = "(%s)" % ", ".join(puppet.permissions.all())
+                cpermstr = f'({", ".join(puppet.permissions.all())})'
                 cpermstr = f"Quelling to current puppet's permissions {cpermstr}."
                 cpermstr += (
                     f"\n(Note: If this is higher than Account permissions {permstr},"

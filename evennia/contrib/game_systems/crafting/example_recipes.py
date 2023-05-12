@@ -154,13 +154,7 @@ class _SwordSmithingBaseRecipe(CraftingRecipe):
             crafting.CraftingError to abort craft process on failure).
 
         """
-        if random.random() < 0.8:
-            # 80% chance of success. This will spawn the sword and show
-            # success-message.
-            return super().craft(**kwargs)
-        else:
-            # fail and show failed message
-            return None
+        return super().craft(**kwargs) if random.random() < 0.8 else None
 
 
 class SwordBladeRecipe(_SwordSmithingBaseRecipe):

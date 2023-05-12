@@ -72,7 +72,7 @@ def build_matches(raw_string, cmdset, include_prefixes=False):
             if cmdname:
                 matches.append(create_match(cmdname, raw_string, cmd, raw_cmdname))
     except Exception:
-        log_trace("cmdhandler error. raw_input:%s" % raw_string)
+        log_trace(f"cmdhandler error. raw_input:{raw_string}")
     return matches
 
 
@@ -97,9 +97,7 @@ def try_num_differentiators(raw_string):
         will parse `"2-ball"` and return `(2, "ball")`.
 
     """
-    # no matches found
-    num_ref_match = _MULTIMATCH_REGEX.match(raw_string)
-    if num_ref_match:
+    if num_ref_match := _MULTIMATCH_REGEX.match(raw_string):
         # the user might be trying to identify the command
         # with a #num-command style syntax. We expect the regex to
         # contain the groups "number" and "name".
@@ -171,10 +169,9 @@ def cmdparser(raw_string, cmdset, caller, match_index=None):
 
     # try to bring the number of matches down to 1
     if len(matches) > 1:
-        # See if it helps to analyze the match with preserved case but only if
-        # it leaves at least one match.
-        trimmed = [match for match in matches if raw_string.startswith(match[0])]
-        if trimmed:
+        if trimmed := [
+            match for match in matches if raw_string.startswith(match[0])
+        ]:
             matches = trimmed
 
     if len(matches) > 1:
@@ -194,12 +191,6 @@ def cmdparser(raw_string, cmdset, caller, match_index=None):
     if len(matches) > 1 and match_index is not None:
         # We couldn't separate match by quality, but we have an
         # index argument to tell us which match to use.
-        if 0 < match_index <= len(matches):
-            matches = [matches[match_index - 1]]
-        else:
-            # we tried to give an index outside of the range - this means
-            # a no-match
-            matches = []
-
+        matches = [matches[match_index - 1]] if 0 < match_index <= len(matches) else []
     # no matter what we have at this point, we have to return it.
     return matches

@@ -125,7 +125,7 @@ def _create_version():
             .strip()
             .decode()
         )
-        version = "%s (rev %s)" % (version, rev)
+        version = f"{version} (rev {rev})"
     except (IOError, CalledProcessError, OSError):
         # ignore if we cannot get to git
         pass
@@ -407,8 +407,6 @@ def set_trace(term_size=(140, 80), debugger="auto"):
         except ImportError:
             if debugger == "pudb":
                 raise
-            pass
-
     if not dbg:
         import pdb
 

@@ -57,7 +57,7 @@ def _move_to_room(caller, raw_string, **kwargs):
     """
     room = kwargs["room"]
     room.msg_char(caller, f"Entering room |c'{room.name}'|n ...")
-    room.msg_room(caller, f"~You |c~were just tricked in here too!|n")
+    room.msg_room(caller, "~You |c~were just tricked in here too!|n")
     # we do a manual move since we don't want all hooks to fire.
     old_location = caller.location
     caller.location = room
@@ -158,9 +158,8 @@ def node_set_desc(caller, raw_string, **kwargs):
         desc = raw_string.strip()
         if 5 < len(desc) < 40:
             return None, {"desc": raw_string.strip()}
-        else:
-            caller.msg("|rYour description must be 5-40 characters long.|n")
-            return None
+        caller.msg("|rYour description must be 5-40 characters long.|n")
+        return None
 
     def _set_description(caller, raw_string, **kwargs):
         caller.db.desc = kwargs.get("desc")
@@ -303,25 +302,19 @@ def node_options(caller, raw_string, **kwargs):
 
     options = (
         {
-            "desc": "{}No item markings (hard mode)".format(
-                "|g(*)|n " if things_style == 0 else "( ) "
-            ),
+            "desc": f'{"|g(*)|n " if things_style == 0 else "( ) "}No item markings (hard mode)',
             "goto": (_set_thing_style, {"value": 0, "session": session}),
         },
         {
-            "desc": "{}Items marked as |yitem|n (with color)".format(
-                "|g(*)|n " if things_style == 1 else "( ) "
-            ),
+            "desc": f'{"|g(*)|n " if things_style == 1 else "( ) "}Items marked as |yitem|n (with color)',
             "goto": (_set_thing_style, {"value": 1, "session": session}),
         },
         {
-            "desc": "{}Items are marked as |y[item]|n (screenreader friendly)".format(
-                "|g(*)|n " if things_style == 2 else "( ) "
-            ),
+            "desc": f'{"|g(*)|n " if things_style == 2 else "( ) "}Items are marked as |y[item]|n (screenreader friendly)',
             "goto": (_set_thing_style, {"value": 2, "session": session}),
         },
         {
-            "desc": "{}Screenreader mode".format("(*) " if screenreader else "( ) "),
+            "desc": f'{"(*) " if screenreader else "( ) "}Screenreader mode',
             "goto": (_toggle_screen_reader, kwargs),
         },
     )

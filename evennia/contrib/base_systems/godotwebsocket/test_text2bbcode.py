@@ -19,7 +19,7 @@ class TestText2Bbcode(TestCase):
         )
         self.assertEqual(
             "[bgcolor=#800000]red[/bgcolor]foo",
-            parser.format_styles(ansi.ANSI_BACK_RED + "red" + ansi.ANSI_NORMAL + "foo"),
+            parser.format_styles(f"{ansi.ANSI_BACK_RED}red{ansi.ANSI_NORMAL}foo"),
         )
         self.assertEqual(
             "[bgcolor=#800000][color=#008000]red[/color][/bgcolor]foo",
@@ -34,15 +34,17 @@ class TestText2Bbcode(TestCase):
         )
         self.assertEqual(
             "a [u]red[/u]foo",
-            parser.format_styles("a " + ansi.ANSI_UNDERLINE + "red" + ansi.ANSI_NORMAL + "foo"),
+            parser.format_styles(
+                f"a {ansi.ANSI_UNDERLINE}red{ansi.ANSI_NORMAL}foo"
+            ),
         )
         self.assertEqual(
             "a [blink]red[/blink]foo",
-            parser.format_styles("a " + ansi.ANSI_BLINK + "red" + ansi.ANSI_NORMAL + "foo"),
+            parser.format_styles(f"a {ansi.ANSI_BLINK}red{ansi.ANSI_NORMAL}foo"),
         )
         self.assertEqual(
             "a [bgcolor=#c0c0c0][color=#000000]red[/color][/bgcolor]foo",
-            parser.format_styles("a " + ansi.ANSI_INVERSE + "red" + ansi.ANSI_NORMAL + "foo"),
+            parser.format_styles(f"a {ansi.ANSI_INVERSE}red{ansi.ANSI_NORMAL}foo"),
         )
 
     def test_convert_urls(self):

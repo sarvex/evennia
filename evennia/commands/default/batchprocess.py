@@ -71,7 +71,7 @@ def format_header(caller, entry):
     stacklen = len(caller.ndb.batch_stack)
     header = "|w%02i/%02i|G: %s|n" % (ptr, stacklen, header)
     # add extra space to the side for padding.
-    header = "%s%s" % (header, " " * (width - len(header)))
+    header = f'{header}{" " * (width - len(header))}'
     header = header.replace("\n", "\\n")
 
     return header
@@ -81,9 +81,7 @@ def format_code(entry):
     """
     Formats the viewing of code and errors
     """
-    code = ""
-    for line in entry.split("\n"):
-        code += "\n|G>>>|n %s" % line
+    code = "".join("\n|G>>>|n %s" % line for line in entry.split("\n"))
     return code.strip()
 
 
@@ -113,8 +111,9 @@ def batch_code_exec(caller):
     code = stack[ptr]
 
     caller.msg(format_header(caller, code))
-    err = BATCHCODE.code_exec(code, extra_environ={"caller": caller}, debug=debug)
-    if err:
+    if err := BATCHCODE.code_exec(
+        code, extra_environ={"caller": caller}, debug=debug
+    ):
         caller.msg(format_code(err))
         return False
     return True
@@ -232,10 +231,7 @@ class CmdBatchCommands(_COMMAND_DEFAULT_CLASS):
             caller.msg(_UTF8_ERROR % (python_path, err))
             return
         except IOError as err:
-            if err:
-                err = "{}\n".format(str(err))
-            else:
-                err = ""
+            err = f"{str(err)}\n" if err else ""
             string = (
                 "%s'%s' could not load. You have to supply python paths "
                 "from one of the defined batch-file directories\n (%s)."
@@ -328,10 +324,7 @@ class CmdBatchCode(_COMMAND_DEFAULT_CLASS):
             caller.msg(_UTF8_ERROR % (python_path, err))
             return
         except IOError as err:
-            if err:
-                err = f"{err}\n"
-            else:
-                err = ""
+            err = f"{err}\n" if err else ""
             string = (
                 "%s'%s' could not load. You have to supply python paths "
                 "from one of the defined batch-file directories\n (%s)."
@@ -499,10 +492,7 @@ class CmdStateNN(_COMMAND_DEFAULT_CLASS):
     def func(self):
         caller = self.caller
         arg = self.args
-        if arg and arg.isdigit():
-            step = int(self.args)
-        else:
-            step = 1
+        step = int(self.args) if arg and arg.isdigit() else 1
         step_pointer(caller, step)
         show_curr(caller)
 
@@ -522,10 +512,7 @@ class CmdStateNL(_COMMAND_DEFAULT_CLASS):
     def func(self):
         caller = self.caller
         arg = self.args
-        if arg and arg.isdigit():
-            step = int(self.args)
-        else:
-            step = 1
+        step = int(self.args) if arg and arg.isdigit() else 1
         step_pointer(caller, step)
         show_curr(caller, showall=True)
 
@@ -545,10 +532,7 @@ class CmdStateBB(_COMMAND_DEFAULT_CLASS):
     def func(self):
         caller = self.caller
         arg = self.args
-        if arg and arg.isdigit():
-            step = -int(self.args)
-        else:
-            step = -1
+        step = -int(self.args) if arg and arg.isdigit() else -1
         step_pointer(caller, step)
         show_curr(caller)
 
@@ -568,10 +552,7 @@ class CmdStateBL(_COMMAND_DEFAULT_CLASS):
     def func(self):
         caller = self.caller
         arg = self.args
-        if arg and arg.isdigit():
-            step = -int(self.args)
-        else:
-            step = -1
+        step = -int(self.args) if arg and arg.isdigit() else -1
         step_pointer(caller, step)
         show_curr(caller, showall=True)
 
@@ -592,11 +573,7 @@ class CmdStateSS(_COMMAND_DEFAULT_CLASS):
     def func(self):
         caller = self.caller
         arg = self.args
-        if arg and arg.isdigit():
-            step = int(self.args)
-        else:
-            step = 1
-
+        step = int(self.args) if arg and arg.isdigit() else 1
         for _ in range(step):
             if caller.ndb.batch_batchmode == "batch_code":
                 batch_code_exec(caller)
@@ -622,11 +599,7 @@ class CmdStateSL(_COMMAND_DEFAULT_CLASS):
     def func(self):
         caller = self.caller
         arg = self.args
-        if arg and arg.isdigit():
-            step = int(self.args)
-        else:
-            step = 1
-
+        step = int(self.args) if arg and arg.isdigit() else 1
         for _ in range(step):
             if caller.ndb.batch_batchmode == "batch_code":
                 batch_code_exec(caller)

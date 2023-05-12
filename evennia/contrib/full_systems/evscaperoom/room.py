@@ -37,7 +37,7 @@ class EvscapeRoom(EvscaperoomObject, DefaultRoom):
         # this is used for tagging of all objects belonging to this
         # particular room instance, so they can be cleaned up later
         # this is accessed through the .tagcategory getter.
-        self.db.tagcategory = "evscaperoom_{}".format(self.key)
+        self.db.tagcategory = f"evscaperoom_{self.key}"
 
         # room progress statistics
         self.db.stats = {
@@ -65,10 +65,11 @@ class EvscapeRoom(EvscaperoomObject, DefaultRoom):
         """
         Log to a file specificially for this room.
         """
-        caller = f"[caller.key]: " if caller else ""
+        caller = "[caller.key]: " if caller else ""
 
         logger.log_file(
-            strip_ansi(f"{caller}{message.strip()}"), filename=self.tagcategory + ".log"
+            strip_ansi(f"{caller}{message.strip()}"),
+            filename=f"{self.tagcategory}.log",
         )
 
     def score(self, new_score, reason):

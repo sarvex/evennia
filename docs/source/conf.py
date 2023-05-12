@@ -203,17 +203,17 @@ def url_resolver(app, docname, source):
             # github:develop/... shortcut
             urlpath = url[url.index(_githubstart) + len(_githubstart) :]
             if not (urlpath.startswith("develop/") or urlpath.startswith("main/")):
-                urlpath = "main/" + urlpath
+                urlpath = f"main/{urlpath}"
             return _github_code_root + urlpath
         elif _sourcestart in url:
             ind = url.index(_sourcestart)
 
             modpath, *inmodule = url[ind + len(_sourcestart) :].rsplit("#", 1)
             modpath = "/".join(modpath.split("."))
-            inmodule = "#" + inmodule[0] if inmodule else ""
-            modpath = modpath + ".html" + inmodule
+            inmodule = f"#{inmodule[0]}" if inmodule else ""
+            modpath = f"{modpath}.html{inmodule}"
 
-            urlpath = relative_path + "_modules/" + modpath
+            urlpath = f"{relative_path}_modules/{modpath}"
             return urlpath
 
         return url
@@ -284,9 +284,7 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
     """Which members the autodoc should ignore."""
     if _no_autodoc:
         return True
-    if name.startswith("_") and name != "__init__":
-        return True
-    return False
+    return bool(name.startswith("_") and name != "__init__")
 
 
 def autodoc_post_process_docstring(app, what, name, obj, options, lines):
@@ -306,7 +304,7 @@ def autodoc_post_process_docstring(app, what, name, obj, options, lines):
 
         def _sub_codeblock(match):
             code = match.group(1)
-            return "::\n\n    {}".format("\n    ".join(lne for lne in code.split("\n")))
+            return "::\n\n    {}".format("\n    ".join(code.split("\n")))
 
         underline_map = {
             1: "-",

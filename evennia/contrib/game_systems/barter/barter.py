@@ -199,9 +199,7 @@ class TradeHandler(object):
         """
         if self.part_a == party:
             return self.part_b
-        if self.part_b == party:
-            return self.part_a
-        return None
+        return self.part_a if self.part_b == party else None
 
     def join(self, part_b):
         """
@@ -276,10 +274,8 @@ class TradeHandler(object):
 
         """
         all_offers = self.part_a_offers + self.part_b_offers
-        if isinstance(offername, int):
-            # an index to return
-            if 0 <= offername < len(all_offers):
-                return all_offers[offername]
+        if isinstance(offername, int) and 0 <= offername < len(all_offers):
+            return all_offers[offername]
 
         all_keys = [offer.key for offer in all_offers]
         try:
@@ -411,14 +407,14 @@ class CmdTradeBase(Command):
         self.trade_started = self.tradehandler.trade_started
         self.emote = ""
         self.str_caller = "Your trade action: %s"
-        self.str_other = "%s:s trade action: " % self.caller.key + "%s"
+        self.str_other = f"{self.caller.key}:s trade action: %s"
         if ":" in self.args:
             self.args, self.emote = [part.strip() for part in self.args.rsplit(":", 1)]
-            self.str_caller = 'You say, "' + self.emote + '"\n  [%s]'
+            self.str_caller = f'You say, "{self.emote}' + '"\n  [%s]'
             if self.caller.has_account:
-                self.str_other = '|c%s|n says, "' % self.caller.key + self.emote + '"\n  [%s]'
+                self.str_other = f'|c{self.caller.key}|n says, "{self.emote}' + '"\n  [%s]'
             else:
-                self.str_other = '%s says, "' % self.caller.key + self.emote + '"\n  [%s]'
+                self.str_other = f'{self.caller.key} says, "{self.emote}' + '"\n  [%s]'
 
 
 # trade help
@@ -501,23 +497,23 @@ class CmdOffer(CmdTradeBase):
         offers = [part.strip() for part in self.args.split(",")]
         offerobjs = []
         for offername in offers:
-            obj = caller.search(offername)
-            if not obj:
+            if obj := caller.search(offername):
+                offerobjs.append(obj)
+            else:
                 return
-            offerobjs.append(obj)
         self.tradehandler.offer(self.caller, *offerobjs)
 
         # output
         if len(offerobjs) > 1:
             objnames = (
-                ", ".join("|w%s|n" % obj.key for obj in offerobjs[:-1])
-                + " and |w%s|n" % offerobjs[-1].key
+                ", ".join(f"|w{obj.key}|n" for obj in offerobjs[:-1])
+                + f" and |w{offerobjs[-1].key}|n"
             )
         else:
-            objnames = "|w%s|n" % offerobjs[0].key
+            objnames = f"|w{offerobjs[0].key}|n"
 
-        caller.msg(self.str_caller % ("You offer %s" % objnames))
-        self.msg_other(caller, self.str_other % ("They offer %s" % objnames))
+        caller.msg(self.str_caller % f"You offer {objnames}")
+        self.msg_other(caller, self.str_other % f"They offer {objnames}")
 
 
 # accept
@@ -657,7 +653,7 @@ class CmdEvaluate(CmdTradeBase):
 
         offer = self.tradehandler.search(self.args)
         if not offer:
-            caller.msg("No offer matching '%s' was found." % self.args)
+            caller.msg(f"No offer matching '{self.args}' was found.")
             return
         # show the description
         caller.msg(offer.db.desc)
@@ -710,8 +706,8 @@ class CmdStatus(CmdTradeBase):
             self.part_b.key,
             "".join(part_b_offerlist),
         )
-        accept_a = self.tradehandler.part_a_accepted and "|gYes|n" or "|rNo|n"
-        accept_b = self.tradehandler.part_b_accepted and "|gYes|n" or "|rNo|n"
+        accept_a = "|gYes|n" if self.tradehandler.part_a_accepted else "|rNo|n"
+        accept_b = "|gYes|n" if self.tradehandler.part_b_accepted else "|rNo|n"
         string += "\n\n%s agreed: %s, %s agreed: %s" % (
             self.part_a.key,
             accept_a,
@@ -841,9 +837,6 @@ class CmdTrade(Command):
             part_a.msg("You play trader with yourself.")
             return
 
-        # messages
-        str_init_a = "You ask to trade with %s. They need to accept within %s secs."
-        str_init_b = "%s wants to trade with you. Use |wtrade %s accept/decline [:emote]|n to answer (within %s secs)."
         str_noinit_a = "%s declines the trade"
         str_noinit_b = "You decline trade with %s."
         str_start_a = "%s starts to trade with you. See |wtrade help|n for aid."
@@ -853,10 +846,11 @@ class CmdTrade(Command):
             # initialization of trade
             if self.caller.ndb.tradehandler:
                 # trying to start trade without stopping a previous one
-                if self.caller.ndb.tradehandler.trade_started:
-                    string = "You are already in trade with %s. You need to end trade first."
-                else:
-                    string = "You are already trying to initiate trade with %s. You need to decline that trade first."
+                string = (
+                    "You are already in trade with %s. You need to end trade first."
+                    if self.caller.ndb.tradehandler.trade_started
+                    else "You are already trying to initiate trade with %s. You need to decline that trade first."
+                )
                 self.caller.msg(string % part_b.key)
             elif part_b.ndb.tradehandler and part_b.ndb.tradehandler.part_b == part_a:
                 # this is equivalent to part_a accepting a trade from part_b (so roles are reversed)
@@ -866,16 +860,18 @@ class CmdTrade(Command):
             else:
                 # initiate a new trade
                 TradeHandler(part_a, part_b)
+                # messages
+                str_init_a = "You ask to trade with %s. They need to accept within %s secs."
                 part_a.msg(selfemote + str_init_a % (part_b.key, TRADE_TIMEOUT))
+                str_init_b = "%s wants to trade with you. Use |wtrade %s accept/decline [:emote]|n to answer (within %s secs)."
                 part_b.msg(theiremote + str_init_b % (part_a.key, part_a.key, TRADE_TIMEOUT))
                 part_a.scripts.add(TradeTimeout)
-            return
         elif accept:
             # accept a trade proposal from part_b (so roles are reversed)
             if part_a.ndb.tradehandler:
                 # already in a trade
                 part_a.msg(
-                    "You are already in trade with %s. You need to end that first." % part_b.key
+                    f"You are already in trade with {part_b.key}. You need to end that first."
                 )
                 return
             if part_b.ndb.tradehandler.join(part_a):
@@ -883,17 +879,14 @@ class CmdTrade(Command):
                 part_a.msg(selfemote + str_start_b % part_b.key)
             else:
                 part_a.msg("No trade proposal to accept.")
-            return
+        elif part_a.ndb.tradehandler and part_a.ndb.tradehandler.part_b == part_a:
+            # stopping an invite
+            part_a.ndb.tradehandler.finish(force=True)
+            part_b.msg(f"{theiremote}{part_a} aborted trade attempt with you.")
+            part_a.msg(f"{selfemote}You aborted the trade attempt with {part_b}.")
+        elif part_b.ndb.tradehandler and part_b.ndb.tradehandler.unjoin(part_a):
+            part_b.msg(theiremote + str_noinit_a % part_a.key)
+            part_a.msg(selfemote + str_noinit_b % part_b.key)
         else:
-            # decline trade proposal from part_b (so roles are reversed)
-            if part_a.ndb.tradehandler and part_a.ndb.tradehandler.part_b == part_a:
-                # stopping an invite
-                part_a.ndb.tradehandler.finish(force=True)
-                part_b.msg(theiremote + "%s aborted trade attempt with you." % part_a)
-                part_a.msg(selfemote + "You aborted the trade attempt with %s." % part_b)
-            elif part_b.ndb.tradehandler and part_b.ndb.tradehandler.unjoin(part_a):
-                part_b.msg(theiremote + str_noinit_a % part_a.key)
-                part_a.msg(selfemote + str_noinit_b % part_b.key)
-            else:
-                part_a.msg("No trade proposal to decline.")
-            return
+            part_a.msg("No trade proposal to decline.")
+        return

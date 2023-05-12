@@ -256,12 +256,10 @@ class Msg(SharedMemoryModel):
             if not hasattr(sender, "__dbclass__"):
                 raise ValueError("This is a not a typeclassed object!")
             clsname = sender.__dbclass__.__name__
-            if clsname == "ObjectDB":
+            if clsname in ["AccountDB", "ScriptDB"]:
+                self.db_sender_accounts.remove(sender)
+            elif clsname == "ObjectDB":
                 self.db_sender_objects.remove(sender)
-            elif clsname == "AccountDB":
-                self.db_sender_accounts.remove(sender)
-            elif clsname == "ScriptDB":
-                self.db_sender_accounts.remove(sender)
 
     @property
     def receivers(self):
@@ -542,14 +540,11 @@ class SubscriptionHandler(object):
             account: True
             for account in self.obj.db_account_subscriptions.all()
             if hasattr(account, "pk") and account.pk
+        } | {
+            obj: True
+            for obj in self.obj.db_object_subscriptions.all()
+            if hasattr(obj, "pk") and obj.pk
         }
-        self._cache.update(
-            {
-                obj: True
-                for obj in self.obj.db_object_subscriptions.all()
-                if hasattr(obj, "pk") and obj.pk
-            }
-        )
 
     def has(self, entity):
         """
@@ -707,7 +702,7 @@ class ChannelDB(TypedObject):
 
     def __str__(self):
         "Echoes the text representation of the channel."
-        return "Channel '%s' (%s)" % (self.key, self.db.desc)
+        return f"Channel '{self.key}' ({self.db.desc})"
 
     @lazy_property
     def subscriptions(self):

@@ -51,7 +51,7 @@ class _CmdSetMeta(type):
         # name of its class.
         if not hasattr(cls, "key") or not cls.key:
             cls.key = cls.__name__
-        cls.path = "%s.%s" % (cls.__module__, cls.__name__)
+        cls.path = f"{cls.__module__}.{cls.__name__}"
 
         if not isinstance(cls.key_mergetypes, dict):
             cls.key_mergetypes = {}
@@ -329,10 +329,7 @@ class CmdSet(object, metaclass=_CmdSetMeta):
             result (any): An instantiated Command or the input unmodified.
 
         """
-        if callable(cmd):
-            return cmd()
-        else:
-            return cmd
+        return cmd() if callable(cmd) else cmd
 
     def _duplicate(self):
         """
@@ -362,12 +359,12 @@ class CmdSet(object, metaclass=_CmdSetMeta):
         perm = "perm" if self.persistent else "non-perm"
         options = ", ".join(
             [
-                "{}:{}".format(opt, "T" if getattr(self, opt) else "F")
+                f'{opt}:{"T" if getattr(self, opt) else "F"}'
                 for opt in ("no_exits", "no_objs", "no_channels", "duplicates")
                 if getattr(self, opt) is not None
             ]
         )
-        options = (", " + options) if options else ""
+        options = f", {options}" if options else ""
         return (
             f"<CmdSet {self.key}, {self.mergetype}, {perm}, prio {self.priority}{options}>: "
             + ", ".join([str(cmd) for cmd in sorted(self.commands, key=lambda o: o.key)])
@@ -446,8 +443,6 @@ class CmdSet(object, metaclass=_CmdSetMeta):
             )
             cmdset_c.no_exits = self.no_exits if cmdset_a.no_exits is None else cmdset_a.no_exits
             cmdset_c.no_objs = self.no_objs if cmdset_a.no_objs is None else cmdset_a.no_objs
-            cmdset_c.duplicates = None
-
         else:
             # B higher priority than A
 
@@ -476,7 +471,7 @@ class CmdSet(object, metaclass=_CmdSetMeta):
             )
             cmdset_c.no_exits = cmdset_a.no_exits if self.no_exits is None else self.no_exits
             cmdset_c.no_objs = cmdset_a.no_objs if self.no_objs is None else self.no_objs
-            cmdset_c.duplicates = None
+        cmdset_c.duplicates = None
 
         # we store actual_mergetype since key_mergetypes
         # might be different from the main mergetype.
@@ -614,10 +609,7 @@ class CmdSet(object, metaclass=_CmdSetMeta):
                 cmd = _cmd
 
         cmd = self._instantiate(cmd)
-        for thiscmd in self.commands:
-            if thiscmd == cmd:
-                return thiscmd
-        return None
+        return next((thiscmd for thiscmd in self.commands if thiscmd == cmd), None)
 
     def count(self):
         """

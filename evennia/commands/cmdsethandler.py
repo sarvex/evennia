@@ -162,7 +162,9 @@ def import_cmdset(path, cmdsetobj, emit_to_obj=None, no_logging=False):
 
     """
     python_paths = [path] + [
-        "%s.%s" % (prefix, path) for prefix in _CMDSET_PATHS if not path.startswith(prefix)
+        f"{prefix}.{path}"
+        for prefix in _CMDSET_PATHS
+        if not path.startswith(prefix)
     ]
     errstring = ""
     for python_path in python_paths:
@@ -338,7 +340,7 @@ class CmdSetHandler(object):
             strings.append(f" <Merged {mergelist}>: {self.current}")
         else:
             # current is a single cmdset
-            strings.append(" " + str(self.current))
+            strings.append(f" {str(self.current)}")
         return "\n".join(strings).rstrip()
 
     def _import_cmdset(self, cmdset_path, emit_to_obj=None):
@@ -379,16 +381,13 @@ class CmdSetHandler(object):
 
         """
         if init_mode:
-            # reimport all persistent cmdsets
-            storage = self.obj.cmdset_storage
-            if storage:
+            if storage := self.obj.cmdset_storage:
                 self.cmdset_stack = []
                 for pos, path in enumerate(storage):
                     if pos == 0 and not path:
                         self.cmdset_stack = [_EmptyCmdSet(cmdsetobj=self.obj)]
                     elif path:
-                        cmdset = self._import_cmdset(path)
-                        if cmdset:
+                        if cmdset := self._import_cmdset(path):
                             if cmdset.key == "_CMDSET_ERROR":
                                 # If a cmdset fails to load, check if we have a fallback path to use
                                 fallback_path = _CMDSET_FALLBACKS.get(path, None)
@@ -605,8 +604,7 @@ class CmdSetHandler(object):
 
         """
         self.cmdset_stack = [self.cmdset_stack[0]]
-        storage = self.obj.cmdset_storage
-        if storage:
+        if storage := self.obj.cmdset_storage:
             storage = storage[0]
             self.obj.cmdset_storage = storage
         self.update()
@@ -627,24 +625,24 @@ class CmdSetHandler(object):
         """
         if callable(cmdset) and hasattr(cmdset, "path"):
             # try it as a callable
-            if must_be_default:
-                return self.cmdset_stack and (self.cmdset_stack[0].path == cmdset.path)
-            else:
-                return any([cset for cset in self.cmdset_stack if cset.path == cmdset.path])
-        else:
+            return (
+                self.cmdset_stack and (self.cmdset_stack[0].path == cmdset.path)
+                if must_be_default
+                else any(
+                    cset for cset in self.cmdset_stack if cset.path == cmdset.path
+                )
+            )
             # try it as a path or key
-            if must_be_default:
-                return self.cmdset_stack and (
-                    self.cmdset_stack[0].key == cmdset or self.cmdset_stack[0].path == cmdset
-                )
-            else:
-                return any(
-                    [
-                        cset
-                        for cset in self.cmdset_stack
-                        if cset.path == cmdset or cset.key == cmdset
-                    ]
-                )
+        if must_be_default:
+            return self.cmdset_stack and (
+                self.cmdset_stack[0].key == cmdset or self.cmdset_stack[0].path == cmdset
+            )
+        else:
+            return any(
+                cset
+                for cset in self.cmdset_stack
+                if cset.path == cmdset or cset.key == cmdset
+            )
 
     # backwards-compatability alias
     has_cmdset = has

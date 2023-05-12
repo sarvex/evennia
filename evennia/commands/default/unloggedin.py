@@ -53,9 +53,8 @@ def create_guest_account(session):
     account, errors = Guest.authenticate(ip=address)
     if account:
         return enabled, account
-    else:
-        session.msg("|R%s|n" % "\n".join(errors))
-        return enabled, None
+    session.msg("|R%s|n" % "\n".join(errors))
+    return enabled, None
 
 
 def create_normal_account(session, name, password):
@@ -125,18 +124,16 @@ class CmdUnconnectedConnect(COMMAND_DEFAULT_CLASS):
             parts = parts[0].split(None, 1)
 
             # Guest login
-            if len(parts) == 1 and parts[0].lower() == "guest":
-                # Get Guest typeclass
-                Guest = class_from_module(settings.BASE_GUEST_TYPECLASS)
+        if len(parts) == 1 and parts[0].lower() == "guest":
+            # Get Guest typeclass
+            Guest = class_from_module(settings.BASE_GUEST_TYPECLASS)
 
-                account, errors = Guest.authenticate(ip=address)
-                if account:
-                    session.sessionhandler.login(session, account)
-                    return
-                else:
-                    session.msg("|R%s|n" % "\n".join(errors))
-                    return
-
+            account, errors = Guest.authenticate(ip=address)
+            if account:
+                session.sessionhandler.login(session, account)
+            else:
+                session.msg("|R%s|n" % "\n".join(errors))
+            return
         if len(parts) != 2:
             session.msg("\n\r Usage (without <>): connect <name> <password>")
             return
@@ -230,14 +227,11 @@ class CmdUnconnectedCreate(COMMAND_DEFAULT_CLASS):
             username=username, password=password, ip=address, session=session
         )
         if account:
-            # tell the caller everything went well.
-            string = "A new account '%s' was created. Welcome!"
-            if " " in username:
-                string += (
-                    "\n\nYou can now log in with the command 'connect \"%s\" <your password>'."
-                )
-            else:
-                string += "\n\nYou can now log with the command 'connect %s <your password>'."
+            string = "A new account '%s' was created. Welcome!" + (
+                "\n\nYou can now log in with the command 'connect \"%s\" <your password>'."
+                if " " in username
+                else "\n\nYou can now log with the command 'connect %s <your password>'."
+            )
             session.msg(string % (username, username))
         else:
             session.msg("|R%s|n" % "\n".join(errors))
@@ -333,7 +327,7 @@ You can use the |wlook|n command if you want to see the connect screen again.
 """
 
         if settings.STAFF_CONTACT_EMAIL:
-            string += "For support, please contact: %s" % settings.STAFF_CONTACT_EMAIL
+            string += f"For support, please contact: {settings.STAFF_CONTACT_EMAIL}"
         self.caller.msg(string)
 
 
@@ -374,10 +368,8 @@ class CmdUnconnectedEncoding(COMMAND_DEFAULT_CLASS):
 
         sync = False
         if "clear" in self.switches:
-            # remove customization
-            old_encoding = self.session.protocol_flags.get("ENCODING", None)
-            if old_encoding:
-                string = "Your custom text encoding ('%s') was cleared." % old_encoding
+            if old_encoding := self.session.protocol_flags.get("ENCODING", None):
+                string = f"Your custom text encoding ('{old_encoding}') was cleared."
             else:
                 string = "No custom encoding was set."
             self.session.protocol_flags["ENCODING"] = "utf-8"
@@ -387,11 +379,8 @@ class CmdUnconnectedEncoding(COMMAND_DEFAULT_CLASS):
             pencoding = self.session.protocol_flags.get("ENCODING", None)
             string = ""
             if pencoding:
-                string += (
-                    "Default encoding: |g%s|n (change with |wencoding <encoding>|n)" % pencoding
-                )
-            encodings = settings.ENCODINGS
-            if encodings:
+                string += f"Default encoding: |g{pencoding}|n (change with |wencoding <encoding>|n)"
+            if encodings := settings.ENCODINGS:
                 string += (
                     "\nServer's alternative encodings (tested in this order):\n   |g%s|n"
                     % ", ".join(encodings)
@@ -405,16 +394,10 @@ class CmdUnconnectedEncoding(COMMAND_DEFAULT_CLASS):
             try:
                 codecs_lookup(encoding)
             except LookupError:
-                string = (
-                    "|rThe encoding '|w%s|r' is invalid. Keeping the previous encoding '|w%s|r'.|n"
-                    % (encoding, old_encoding)
-                )
+                string = f"|rThe encoding '|w{encoding}|r' is invalid. Keeping the previous encoding '|w{old_encoding}|r'.|n"
             else:
                 self.session.protocol_flags["ENCODING"] = encoding
-                string = "Your custom text encoding was changed from '|w%s|n' to '|w%s|n'." % (
-                    old_encoding,
-                    encoding,
-                )
+                string = f"Your custom text encoding was changed from '|w{old_encoding}|n' to '|w{encoding}|n'."
                 sync = True
         if sync:
             self.session.sessionhandler.session_portal_sync(self.session)
@@ -438,7 +421,7 @@ class CmdUnconnectedScreenreader(COMMAND_DEFAULT_CLASS):
         """Flips screenreader setting."""
         new_setting = not self.session.protocol_flags.get("SCREENREADER", False)
         self.session.protocol_flags["SCREENREADER"] = new_setting
-        string = "Screenreader mode turned |w%s|n." % ("on" if new_setting else "off")
+        string = f'Screenreader mode turned |w{"on" if new_setting else "off"}|n.'
         self.caller.msg(string)
         self.session.sessionhandler.session_portal_sync(self.session)
 
@@ -493,7 +476,7 @@ def _create_account(session, accountname, password, permissions, typeclass=None,
     # join the new account to the public channel
     pchannel = ChannelDB.objects.get_channel(settings.DEFAULT_CHANNELS[0]["key"])
     if not pchannel or not pchannel.connect(new_account):
-        string = "New account '%s' could not connect to public channel!" % new_account.key
+        string = f"New account '{new_account.key}' could not connect to public channel!"
         logger.log_err(string)
     return new_account
 

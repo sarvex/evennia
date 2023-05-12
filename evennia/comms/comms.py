@@ -184,17 +184,18 @@ class DefaultChannel(ChannelDB, metaclass=TypeclassBase):
         subs = self.subscriptions.all()
         muted = list(self.mutelist)
         listening = [ob for ob in subs if ob.is_connected and ob not in muted]
-        if subs:
-            # display listening subscribers in bold
-            string = ", ".join(
+        return (
+            ", ".join(
                 [
-                    account.key if account not in listening else "|w%s|n" % account.key
+                    account.key
+                    if account not in listening
+                    else f"|w{account.key}|n"
                     for account in subs
                 ]
             )
-        else:
-            string = "<None>"
-        return string
+            if subs
+            else "<None>"
+        )
 
     def mute(self, subscriber, **kwargs):
         """
@@ -416,7 +417,7 @@ class DefaultChannel(ChannelDB, metaclass=TypeclassBase):
                 obj.db.creator_id = creator.id
 
         except Exception as exc:
-            errors.append("An error occurred while creating this '%s' object." % key)
+            errors.append(f"An error occurred while creating this '{key}' object.")
             logger.log_err(exc)
 
         return obj, errors
@@ -612,9 +613,7 @@ class DefaultChannel(ChannelDB, metaclass=TypeclassBase):
             **kwargs (any): Keywords passed on from `msg`, including `senders`.
 
         """
-        # save channel history to log file
-        log_file = self.get_log_filename()
-        if log_file:
+        if log_file := self.get_log_filename():
             senders = ",".join(sender.key for sender in kwargs.get("senders", []))
             senders = f"{senders}: " if senders else ""
             message = f"{senders}{message}"
@@ -713,7 +712,8 @@ class DefaultChannel(ChannelDB, metaclass=TypeclassBase):
         """
         content_type = ContentType.objects.get_for_model(self.__class__)
         return reverse(
-            "admin:%s_%s_change" % (content_type.app_label, content_type.model), args=(self.id,)
+            f"admin:{content_type.app_label}_{content_type.model}_change",
+            args=(self.id,),
         )
 
     @classmethod
@@ -743,7 +743,7 @@ class DefaultChannel(ChannelDB, metaclass=TypeclassBase):
 
         """
         try:
-            return reverse("%s-create" % slugify(cls._meta.verbose_name))
+            return reverse(f"{slugify(cls._meta.verbose_name)}-create")
         except Exception:
             return "#"
 
@@ -777,7 +777,7 @@ class DefaultChannel(ChannelDB, metaclass=TypeclassBase):
         """
         try:
             return reverse(
-                "%s-detail" % slugify(self._meta.verbose_name),
+                f"{slugify(self._meta.verbose_name)}-detail",
                 kwargs={"slug": slugify(self.db_key)},
             )
         except Exception:
@@ -813,7 +813,7 @@ class DefaultChannel(ChannelDB, metaclass=TypeclassBase):
         """
         try:
             return reverse(
-                "%s-update" % slugify(self._meta.verbose_name),
+                f"{slugify(self._meta.verbose_name)}-update",
                 kwargs={"slug": slugify(self.db_key)},
             )
         except Exception:
@@ -846,7 +846,7 @@ class DefaultChannel(ChannelDB, metaclass=TypeclassBase):
         """
         try:
             return reverse(
-                "%s-delete" % slugify(self._meta.verbose_name),
+                f"{slugify(self._meta.verbose_name)}-delete",
                 kwargs={"slug": slugify(self.db_key)},
             )
         except Exception:

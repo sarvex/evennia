@@ -234,7 +234,7 @@ class TestEvScapeRoom(BaseEvenniaTest):
         self.room = utils.create_evscaperoom_object(
             "evscaperoom.room.EvscapeRoom", key="Testroom", home=self.room1
         )
-        self.roomtag = "evscaperoom_{}".format(self.room.key)
+        self.roomtag = f"evscaperoom_{self.room.key}"
 
     def tearDown(self):
         self.room.delete()
@@ -263,7 +263,7 @@ class TestStates(BaseEvenniaTest):
         self.room = utils.create_evscaperoom_object(
             "evscaperoom.room.EvscapeRoom", key="Testroom", home=self.room1
         )
-        self.roomtag = "evscaperoom_#{}".format(self.room.id)
+        self.roomtag = f"evscaperoom_#{self.room.id}"
 
     def tearDown(self):
         self.room.delete()

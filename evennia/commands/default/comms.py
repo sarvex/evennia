@@ -451,8 +451,9 @@ class CmdChannel(COMMAND_DEFAULT_CLASS):
 
         """
         chan_key = channel.key.lower()
-        nicktuples = self.caller.nicks.get(category="channel", return_tuple=True, return_list=True)
-        if nicktuples:
+        if nicktuples := self.caller.nicks.get(
+            category="channel", return_tuple=True, return_list=True
+        ):
             return [tup[2] for tup in nicktuples if tup[3].lower() == chan_key]
         return []
 
@@ -514,7 +515,7 @@ class CmdChannel(COMMAND_DEFAULT_CLASS):
             return False, f"Channel {name} already exists."
 
         # set up the new channel
-        lockstring = "send:all();listen:all();control:id(%s)" % caller.id
+        lockstring = f"send:all();listen:all();control:id({caller.id})"
 
         new_chan = create.create_channel(
             name, aliases=aliases, desc=description, locks=lockstring, typeclass=typeclass
@@ -993,7 +994,7 @@ class CmdChannel(COMMAND_DEFAULT_CLASS):
             # subscribe to a channel
             aliases = []
             if self.rhs:
-                aliases = set(alias.strip().lower() for alias in self.rhs.split(";"))
+                aliases = {alias.strip().lower() for alias in self.rhs.split(";")}
             success, err = self.sub_to_channel(channel)
             if success:
                 for alias in aliases:
@@ -1346,18 +1347,16 @@ class CmdPage(COMMAND_DEFAULT_CLASS):
             if pages_we_sent:
                 recv = ",".join(obj.key for obj in pages_we_sent[0].receivers)
                 self.msg(f"You last paged |c{recv}|n:{pages_we_sent[0].message}")
-                return
             else:
                 self.msg("You haven't paged anyone yet.")
-                return
-
+            return
         if self.args:
             if self.rhs:
                 for target in self.lhslist:
-                    target_obj = self.caller.search(target)
-                    if not target_obj:
+                    if target_obj := self.caller.search(target):
+                        targets.append(target_obj)
+                    else:
                         return
-                    targets.append(target_obj)
                 message = self.rhs.strip()
             else:
                 target, *message = self.args.split(" ", 4)
@@ -1365,14 +1364,13 @@ class CmdPage(COMMAND_DEFAULT_CLASS):
                     # a number to specify a historic page
                     number = int(target)
                 elif target:
-                    target_obj = self.caller.search(target, quiet=True)
-                    if target_obj:
+                    if target_obj := self.caller.search(target, quiet=True):
                         # a proper target
                         targets = [target_obj[0]]
                         message = message[0].strip()
                     else:
                         # a message with a space in it - put it back together
-                        message = target + " " + (message[0] if message else "")
+                        message = f"{target} " + (message[0] if message else "")
                 else:
                     # a single-word message
                     message = message[0].strip()
@@ -1415,9 +1413,7 @@ class CmdPage(COMMAND_DEFAULT_CLASS):
                     received.append(f"|c{target.name}|n")
             if rstrings:
                 self.msg("\n".join(rstrings))
-            self.msg("You paged %s with: '%s'." % (", ".join(received), message))
-            return
-
+            self.msg(f"""You paged {", ".join(received)} with: '{message}'.""")
         else:
             # no message to send
             if number is not None and len(pages) > number:
@@ -1450,7 +1446,7 @@ class CmdPage(COMMAND_DEFAULT_CLASS):
                 if sending:
                     template = to_template
                     sender = f"{sender} " if multi_send else ""
-                    receiver = f" {receiver}" if multi_recv else f" {receiver}"
+                    receiver = f" {receiver}"
                 else:
                     template = from_template
                     receiver = f"{receiver} " if multi_recv else ""
@@ -1465,14 +1461,13 @@ class CmdPage(COMMAND_DEFAULT_CLASS):
                         message=page.message,
                     )
                 )
-            lastpages = "\n ".join(listing)
-
-            if lastpages:
+            if lastpages := "\n ".join(listing):
                 string = f"Your latest pages:\n {lastpages}"
             else:
                 string = "You haven't paged anyone yet."
             self.msg(string)
-            return
+
+        return
 
 
 def _list_bots(cmd):
@@ -1485,10 +1480,11 @@ def _list_bots(cmd):
         bots (str): A table of bots or an error message.
 
     """
-    ircbots = [
-        bot for bot in AccountDB.objects.filter(db_is_bot=True, username__startswith="ircbot-")
-    ]
-    if ircbots:
+    if ircbots := list(
+        AccountDB.objects.filter(
+            db_is_bot=True, username__startswith="ircbot-"
+        )
+    ):
         table = cmd.styled_table(
             "|w#dbref|n",
             "|wbotname|n",
@@ -1498,11 +1494,7 @@ def _list_bots(cmd):
             maxwidth=_DEFAULT_WIDTH,
         )
         for ircbot in ircbots:
-            ircinfo = "%s (%s:%s)" % (
-                ircbot.db.irc_channel,
-                ircbot.db.irc_network,
-                ircbot.db.irc_port,
-            )
+            ircinfo = f"{ircbot.db.irc_channel} ({ircbot.db.irc_network}:{ircbot.db.irc_port})"
             table.add_row(
                 "#%i" % ircbot.id,
                 ircbot.db.irc_botname,
@@ -1594,7 +1586,7 @@ class CmdIRC2Chan(COMMAND_DEFAULT_CLASS):
             ]
             irc_channel = f"#{irc_channel}"
         except Exception:
-            string = "IRC bot definition '%s' is not valid." % self.rhs
+            string = f"IRC bot definition '{self.rhs}' is not valid."
             self.msg(string)
             return
 

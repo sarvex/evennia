@@ -212,7 +212,6 @@ class IRCBot(Bot):
 
     def at_msg_send(self, **kwargs):
         "Shortcut here or we can end up in infinite loop"
-        pass
 
     def get_nicklist(self, caller):
         """
@@ -279,9 +278,8 @@ class IRCBot(Bot):
             "from_channel" in options
             and text
             and self.ndb.ev_channel.dbid == options["from_channel"]
-        ):
-            if not from_obj or from_obj != [self]:
-                super().msg(channel=text)
+        ) and (not from_obj or from_obj != [self]):
+            super().msg(channel=text)
 
     def execute_cmd(self, session=None, txt=None, **kwargs):
         """
@@ -346,11 +344,13 @@ class IRCBot(Bot):
                     delta_conn = t0 - session.conn_time
                     account = sess.get_account()
                     whos.append(
-                        "%s (%s/%s)"
-                        % (
-                            utils.crop("|w%s|n" % account.name, width=25),
-                            utils.time_format(delta_conn, 0),
-                            utils.time_format(delta_cmd, 1),
+                        (
+                            "%s (%s/%s)"
+                            % (
+                                utils.crop(f"|w{account.name}|n", width=25),
+                                utils.time_format(delta_conn, 0),
+                                utils.time_format(delta_cmd, 1),
+                            )
                         )
                     )
                 text = f"Who list (online/idle): {', '.join(sorted(whos, key=lambda w: w.lower()))}"
@@ -492,7 +492,6 @@ class GrapevineBot(Bot):
 
     def at_msg_send(self, **kwargs):
         "Shortcut here or we can end up in infinite loop"
-        pass
 
     def msg(self, text=None, **kwargs):
         """
@@ -518,22 +517,21 @@ class GrapevineBot(Bot):
             "from_channel" in options
             and text
             and self.ndb.ev_channel.dbid == options["from_channel"]
-        ):
-            if not from_obj or from_obj != [self]:
-                # send outputfunc channel(msg, chan, sender)
+        ) and (not from_obj or from_obj != [self]):
+            # send outputfunc channel(msg, chan, sender)
 
-                text = text[0] if isinstance(text, (tuple, list)) else text
+            text = text[0] if isinstance(text, (tuple, list)) else text
 
-                prefix, text = text.split(":", 1)
+            prefix, text = text.split(":", 1)
 
-                super().msg(
-                    channel=(
-                        text.strip(),
-                        self.db.grapevine_channel,
-                        ", ".join(obj.key for obj in from_obj),
-                        {},
-                    )
+            super().msg(
+                channel=(
+                    text.strip(),
+                    self.db.grapevine_channel,
+                    ", ".join(obj.key for obj in from_obj),
+                    {},
                 )
+            )
 
     def execute_cmd(
         self,
@@ -693,9 +691,7 @@ class DiscordBot(Bot):
 
         """
 
-        tag_str = ""
-        if from_channel and self.db.tag_channel:
-            tag_str = f"#{from_channel}"
+        tag_str = f"#{from_channel}" if from_channel and self.db.tag_channel else ""
         if from_server and self.db.tag_guild:
             if tag_str:
                 tag_str += f"@{from_server}"

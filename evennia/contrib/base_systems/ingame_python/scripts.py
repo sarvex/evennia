@@ -74,8 +74,10 @@ class EventHandler(DefaultScript):
         # Generate locals
         self.ndb.current_locals = {}
         self.ndb.fresh_locals = {}
-        addresses = ["evennia.contrib.base_systems.ingame_python.eventfuncs"]
-        addresses.extend(getattr(settings, "EVENTFUNCS_LOCATIONS", ["world.eventfuncs"]))
+        addresses = [
+            "evennia.contrib.base_systems.ingame_python.eventfuncs",
+            *getattr(settings, "EVENTFUNCS_LOCATIONS", ["world.eventfuncs"]),
+        ]
         for address in addresses:
             if pypath_to_realpath(address):
                 self.ndb.fresh_locals.update(all_from_module(address))
@@ -85,9 +87,7 @@ class EventHandler(DefaultScript):
         for task_id, definition in tuple(self.db.tasks.items()):
             future, obj, event_name, locals = definition
             seconds = (future - now).total_seconds()
-            if seconds < 0:
-                seconds = 0
-
+            seconds = max(seconds, 0)
             delay(seconds, complete_task, task_id)
 
         # Place the script in the CallbackHandler
@@ -137,7 +137,7 @@ class EventHandler(DefaultScript):
         invalid = []
         while not classes.empty():
             typeclass = classes.get()
-            typeclass_name = typeclass.__module__ + "." + typeclass.__name__
+            typeclass_name = f"{typeclass.__module__}.{typeclass.__name__}"
             for key, etype in all_events.get(typeclass_name, {}).items():
                 if key in invalid:
                     continue
@@ -250,9 +250,9 @@ class EventHandler(DefaultScript):
         if not valid:
             self.db.to_valid.append((obj, callback_name, len(callbacks) - 1))
 
-        # Call the custom_add if needed
-        custom_add = self.get_events(obj).get(callback_name, [None, None, None, None])[3]
-        if custom_add:
+        if custom_add := self.get_events(obj).get(
+            callback_name, [None, None, None, None]
+        )[3]:
             custom_add(obj, callback_name, len(callbacks) - 1, parameters)
 
         # Build the definition to return (a dictionary)
@@ -340,7 +340,7 @@ class EventHandler(DefaultScript):
             return
         else:
             logger.log_info(
-                "Deleting callback {} {} of {}:\n{}".format(callback_name, number, obj, code)
+                f"Deleting callback {callback_name} {number} of {obj}:\n{code}"
             )
             del callbacks[number]
 
@@ -362,18 +362,24 @@ class EventHandler(DefaultScript):
         # Update locked callback
         for i, line in enumerate(self.db.locked):
             t_obj, t_callback_name, t_number = line
-            if obj is t_obj and callback_name == t_callback_name:
-                if number < t_number:
-                    self.db.locked[i] = (t_obj, t_callback_name, t_number - 1)
+            if (
+                obj is t_obj
+                and callback_name == t_callback_name
+                and number < t_number
+            ):
+                self.db.locked[i] = (t_obj, t_callback_name, t_number - 1)
 
         # Delete time-related callbacks associated with this object
         for script in obj.scripts.all():
-            if isinstance(script, TimecallbackScript):
-                if script.obj is obj and script.db.callback_name == callback_name:
-                    if script.db.number == number:
-                        script.stop()
-                    elif script.db.number > number:
-                        script.db.number -= 1
+            if (
+                isinstance(script, TimecallbackScript)
+                and script.obj is obj
+                and script.db.callback_name == callback_name
+            ):
+                if script.db.number == number:
+                    script.stop()
+                elif script.db.number > number:
+                    script.db.number -= 1
 
     def accept_callback(self, obj, callback_name, number):
         """
@@ -421,14 +427,13 @@ class EventHandler(DefaultScript):
         allowed = ("number", "parameters", "locals")
         if any(k for k in kwargs if k not in allowed):
             raise TypeError(
-                "Unknown keyword arguments were specified " "to call callbacks: {}".format(kwargs)
+                f"Unknown keyword arguments were specified to call callbacks: {kwargs}"
             )
 
         event = self.get_events(obj).get(callback_name)
         if locals is None and not event:
             logger.log_err(
-                "The callback {} for the object {} (typeclass "
-                "{}) can't be found".format(callback_name, obj, type(obj))
+                f"The callback {callback_name} for the object {obj} (typeclass {type(obj)}) can't be found"
             )
             return False
 
@@ -440,17 +445,15 @@ class EventHandler(DefaultScript):
                     locals[variable] = args[i]
                 except IndexError:
                     logger.log_trace(
-                        "callback {} of {} ({}): need variable "
-                        "{} in position {}".format(callback_name, obj, type(obj), variable, i)
+                        f"callback {callback_name} of {obj} ({type(obj)}): need variable {variable} in position {i}"
                     )
                     return False
         else:
-            locals = {key: value for key, value in locals.items()}
+            locals = dict(locals.items())
 
         callbacks = self.get_callbacks(obj).get(callback_name, [])
         if event:
-            custom_call = event[2]
-            if custom_call:
+            if custom_call := event[2]:
                 callbacks = custom_call(callbacks, parameters)
 
         # Now execute all the valid callbacks linked at this address
@@ -502,8 +505,7 @@ class EventHandler(DefaultScript):
         lineno = "|runknown|n"
         for error in trace:
             if error.startswith('  File "<string>", line '):
-                res = RE_LINE_ERROR.search(error)
-                if res:
+                if res := RE_LINE_ERROR.search(error):
                     lineno = int(res.group(1))
 
                     # Try to extract the line
@@ -515,9 +517,7 @@ class EventHandler(DefaultScript):
                         break
 
         exc = raw(trace[-1].strip("\n").splitlines()[-1])
-        err_msg = "Error in {} of {} (#{})[{}], line {}:" " {}\n{}".format(
-            callback_name, obj, oid, number + 1, lineno, line, exc
-        )
+        err_msg = f"Error in {callback_name} of {obj} (#{oid})[{number + 1}], line {lineno}: {line}\n{exc}"
 
         # Inform the last updater if connected
         updater = callback.get("updated_by")
@@ -527,9 +527,7 @@ class EventHandler(DefaultScript):
         if updater and updater.sessions.all():
             updater.msg(err_msg)
         else:
-            err_msg = "Error in {} of {} (#{})[{}], line {}:" " {}\n          {}".format(
-                callback_name, obj, oid, number + 1, lineno, line, exc
-            )
+            err_msg = f"Error in {callback_name} of {obj} (#{oid})[{number + 1}], line {lineno}: {line}\n          {exc}"
             self.ndb.channel.msg(err_msg)
 
     def add_event(self, typeclass, name, variables, help_text, custom_call, custom_add):
@@ -666,7 +664,7 @@ def complete_task(task_id):
         return
 
     if task_id not in script.db.tasks:
-        logger.log_err("The task #{} was scheduled, but it cannot be " "found".format(task_id))
+        logger.log_err(f"The task #{task_id} was scheduled, but it cannot be found")
         return
 
     delta, obj, callback_name, locals = script.db.tasks.pop(task_id)

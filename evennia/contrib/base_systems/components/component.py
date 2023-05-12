@@ -33,8 +33,7 @@ class Component:
             Component: The created instance of the component
 
         """
-        new = cls(host)
-        return new
+        return cls(host)
 
     @classmethod
     def create(cls, host, **kwargs):

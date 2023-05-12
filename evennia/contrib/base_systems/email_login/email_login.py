@@ -100,7 +100,7 @@ class CmdUnconnectedConnect(MuxCommand):
         account = AccountDB.objects.get_account_from_email(email)
         # No accountname match
         if not account:
-            string = "The email '%s' does not match any accounts." % email
+            string = f"The email '{email}' does not match any accounts."
             string += "\n\r\n\rIf you are new you should first create a new account "
             string += "using the 'create' command."
             session.msg(string)
@@ -116,9 +116,10 @@ class CmdUnconnectedConnect(MuxCommand):
             any(tup[0] == account.name for tup in bans)
             or any(tup[2].match(session.address[0]) for tup in bans if tup[2])
         ):
-            # this is a banned IP or name!
-            string = "|rYou have been banned and cannot continue from here."
-            string += "\nIf you feel this ban is in error, please email an admin.|x"
+            string = (
+                "|rYou have been banned and cannot continue from here."
+                + "\nIf you feel this ban is in error, please email an admin.|x"
+            )
             session.msg(string)
             session.execute_cmd("quit")
             return
@@ -184,7 +185,7 @@ class CmdUnconnectedCreate(MuxCommand):
             return
         if not utils.validate_email_address(email):
             # check so the email at least looks ok.
-            session.msg("'%s' is not a valid e-mail address." % email)
+            session.msg(f"'{email}' is not a valid e-mail address.")
             return
 
         # pre-normalize username so the user know what they get
@@ -210,14 +211,11 @@ class CmdUnconnectedCreate(MuxCommand):
             username=username, email=email, password=password, ip=address, session=session
         )
         if account:
-            # tell the caller everything went well.
-            string = "A new account '%s' was created. Welcome!"
-            if " " in username:
-                string += (
-                    "\n\nYou can now log in with the command 'connect \"%s\" <your password>'."
-                )
-            else:
-                string += "\n\nYou can now log with the command 'connect %s <your password>'."
+            string = "A new account '%s' was created. Welcome!" + (
+                "\n\nYou can now log in with the command 'connect \"%s\" <your password>'."
+                if " " in username
+                else "\n\nYou can now log with the command 'connect %s <your password>'."
+            )
             session.msg(string % (username, username))
         else:
             session.msg("|R%s|n" % "\n".join(errors))

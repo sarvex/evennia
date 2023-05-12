@@ -93,7 +93,6 @@ class CmdAddCom(CmdChannel):
         if not channel:
             return
 
-        string = ""
         if not channel.has_connection(caller):
             # we want to connect as well.
             success, err = self.sub_to_channel(channel)
@@ -114,7 +113,7 @@ class CmdAddCom(CmdChannel):
             self.add_alias(channel, alias)
             self.msg(f" You can now refer to the channel {channel} with the alias '{alias}'.")
         else:
-            string += " No alias added."
+            string = "" + " No alias added."
             self.msg(string)
 
 
@@ -210,9 +209,21 @@ class CmdAllCom(CmdChannel):
             subscribed, available = self.list_channels()
             self.msg("\n|wAvailable channels:\n{table}")
             return
-            return
-
-        if args == "on":
+        if args == "destroy":
+            # destroy all channels you control
+            channels = [
+                chan
+                for chan in CHANNEL_DEFAULT_TYPECLASS.objects.get_all_channels()
+                if chan.access(caller, "control")
+            ]
+            for channel in channels:
+                self.execute_cmd(f"cdestroy {channel.key}")
+        elif args == "off":
+            # get names all subscribed channels and disconnect from them all
+            channels = CHANNEL_DEFAULT_TYPECLASS.objects.get_subscriptions(caller)
+            for channel in channels:
+                self.execute_cmd(f"delcom {channel.key}")
+        elif args == "on":
             # get names of all channels available to listen to
             # and activate them all
             channels = [
@@ -221,29 +232,14 @@ class CmdAllCom(CmdChannel):
                 if chan.access(caller, "listen")
             ]
             for channel in channels:
-                self.execute_cmd("addcom %s" % channel.key)
-        elif args == "off":
-            # get names all subscribed channels and disconnect from them all
-            channels = CHANNEL_DEFAULT_TYPECLASS.objects.get_subscriptions(caller)
-            for channel in channels:
-                self.execute_cmd("delcom %s" % channel.key)
-        elif args == "destroy":
-            # destroy all channels you control
-            channels = [
-                chan
-                for chan in CHANNEL_DEFAULT_TYPECLASS.objects.get_all_channels()
-                if chan.access(caller, "control")
-            ]
-            for channel in channels:
-                self.execute_cmd("cdestroy %s" % channel.key)
+                self.execute_cmd(f"addcom {channel.key}")
         elif args == "who":
-            # run a who, listing the subscribers on visible channels.
-            string = "\n|CChannel subscriptions|n"
             channels = [
                 chan
                 for chan in CHANNEL_DEFAULT_TYPECLASS.objects.get_all_channels()
                 if chan.access(caller, "listen")
             ]
+            string = "\n|CChannel subscriptions|n"
             if not channels:
                 string += "No channels."
             for channel in channels:
@@ -284,7 +280,7 @@ class CmdCdestroy(CmdChannel):
         channel = self.search_channel(self.args)
 
         if not channel:
-            self.msg("Could not find channel %s." % self.args)
+            self.msg(f"Could not find channel {self.args}.")
             return
         if not channel.access(caller, "control"):
             self.msg("You are not allowed to do that.")
@@ -292,10 +288,9 @@ class CmdCdestroy(CmdChannel):
         channel_key = channel.key
         message = f"{channel.key} is being destroyed. Make sure to change your aliases."
         self.destroy_channel(channel, message)
-        self.msg("Channel '%s' was destroyed." % channel_key)
+        self.msg(f"Channel '{channel_key}' was destroyed.")
         logger.log_sec(
-            "Channel Deleted: %s (Caller: %s, IP: %s)."
-            % (channel_key, caller, self.session.address)
+            f"Channel Deleted: {channel_key} (Caller: {caller}, IP: {self.session.address})."
         )
 
 
@@ -347,7 +342,7 @@ class CmdCBoot(CmdChannel):
         if not target:
             return
         if reason:
-            reason = " (reason: %s)" % reason
+            reason = f" (reason: {reason})"
         if not channel.access(self.caller, "control"):
             string = "You don't control this channel."
             self.msg(string)
@@ -357,8 +352,7 @@ class CmdCBoot(CmdChannel):
         if success:
             self.msg(f"Booted {target.key} from {channel.key}")
             logger.log_sec(
-                "Channel Boot: %s (Channel: %s, Reason: %s, Caller: %s, IP: %s)."
-                % (self.caller, channel, reason, self.caller, self.session.address)
+                f"Channel Boot: {self.caller} (Channel: {channel}, Reason: {reason}, Caller: {self.caller}, IP: {self.session.address})."
             )
         else:
             self.msg(err)
@@ -427,10 +421,7 @@ class CmdChannelCreate(CmdChannel):
             self.msg("Usage ccreate <channelname>[;alias;alias..] = description")
             return
 
-        description = ""
-
-        if self.rhs:
-            description = self.rhs
+        description = self.rhs if self.rhs else ""
         lhs = self.lhs
         channame = lhs
         aliases = None

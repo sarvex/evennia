@@ -145,14 +145,12 @@ class MuxCommand(Command):
                         unused_switches.append(element)  # or an extraneous option to be ignored.
                 if extra_switches:  # User provided switches
                     self.msg(
-                        "|g%s|n: |wAmbiguous switch supplied: Did you mean /|C%s|w?"
-                        % (self.cmdstring, " |nor /|C".join(extra_switches))
+                        f'|g{self.cmdstring}|n: |wAmbiguous switch supplied: Did you mean /|C{" |nor /|C".join(extra_switches)}|w?'
                     )
                 if unused_switches:
                     plural = "" if len(unused_switches) == 1 else "es"
                     self.msg(
-                        '|g%s|n: |wExtra switch%s "/|C%s|w" ignored.'
-                        % (self.cmdstring, plural, "|n, /|C".join(unused_switches))
+                        f'|g{self.cmdstring}|n: |wExtra switch{plural} "/|C{"|n, /|C".join(unused_switches)}|w" ignored.'
                     )
                 switches = valid_switches  # Only include valid_switches in command function call
         arglist = [arg.strip() for arg in args.split()]
@@ -161,11 +159,10 @@ class MuxCommand(Command):
         lhs, rhs = args.strip(), None
         if lhs:
             if delimiters and hasattr(delimiters, "__iter__"):  # If delimiter is iterable,
-                best_split = delimiters[0]  # (default to first delimiter)
-                for this_split in delimiters:  # try each delimiter
-                    if this_split in lhs:  # to find first successful split
-                        best_split = this_split  # to be the best split.
-                        break
+                best_split = next(
+                    (this_split for this_split in delimiters if this_split in lhs),
+                    delimiters[0],
+                )
             else:
                 best_split = delimiters
             # Parse to separate left into left/right sides using best_split delimiter string
@@ -207,7 +204,8 @@ class MuxCommand(Command):
         Update of parent class's get_command_info() for MuxCommand.
         """
         variables = "\n".join(
-            " |w{}|n ({}): {}".format(key, type(val), val) for key, val in self.__dict__.items()
+            f" |w{key}|n ({type(val)}): {val}"
+            for key, val in self.__dict__.items()
         )
         string = f"""
 Command {self} has no defined `func()` - showing on-command variables: No child func() defined for {self} - available variables:

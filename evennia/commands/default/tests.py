@@ -49,7 +49,7 @@ from twisted.internet import task
 class TestGeneral(BaseEvenniaCommandTest):
     def test_look(self):
         rid = self.room1.id
-        self.call(general.CmdLook(), "here", "Room(#{})\nroom_desc".format(rid))
+        self.call(general.CmdLook(), "here", f"Room(#{rid})\nroom_desc")
 
     def test_look_no_location(self):
         self.char1.location = None
@@ -119,12 +119,16 @@ class TestGeneral(BaseEvenniaCommandTest):
         self.call(general.CmdGive(), "Obj = Char", "You give", caller=self.char2)
 
     def test_mux_command(self):
+
+
+
         class CmdTest(MuxCommand):
             key = "test"
             switch_options = ("test", "testswitch", "testswitch2")
 
             def func(self):
-                self.msg("Switches matched: {}".format(self.switches))
+                self.msg(f"Switches matched: {self.switches}")
+
 
         self.call(
             CmdTest(),
@@ -463,7 +467,7 @@ class TestCmdTasks(BaseEvenniaCommandTest):
 
     def test_func_name_manipulation(self):
         self.task_handler.add(self.timedelay, func_test_cmd_tasks)  # add an extra task
-        args = f"/remove func_test_cmd_tasks"
+        args = "/remove func_test_cmd_tasks"
         wanted_msg = (
             "Task action remove completed on task ID 1.|The task function remove returned: True|"
             "Task action remove completed on task ID 2.|The task function remove returned: True"
@@ -472,7 +476,7 @@ class TestCmdTasks(BaseEvenniaCommandTest):
         self.assertFalse(self.task_handler.tasks)  # no tasks should exist.
 
     def test_wrong_func_name(self):
-        args = f"/remove intentional_fail"
+        args = "/remove intentional_fail"
         wanted_msg = "No tasks deferring function name intentional_fail found."
         self.call(system.CmdTasks(), args, wanted_msg)
         self.assertTrue(self.task.active())
@@ -488,9 +492,9 @@ class TestCmdTasks(BaseEvenniaCommandTest):
         self.call(system.CmdTasks(), f"/cancel {self.task.get_id()}")
         self.char1.msg = Mock()
         self.char1.execute_cmd("y")
-        text = ""
-        for _, _, kwargs in self.char1.msg.mock_calls:
-            text += kwargs.get("text", "")
+        text = "".join(
+            kwargs.get("text", "") for _, _, kwargs in self.char1.msg.mock_calls
+        )
         self.assertEqual(text, "cancel request completed.The task function cancel returned: True")
         self.assertTrue(self.task.exists())
 
@@ -500,9 +504,9 @@ class TestCmdTasks(BaseEvenniaCommandTest):
         self.task_handler.clock.advance(self.timedelay + 1)
         self.char1.msg = Mock()
         self.char1.execute_cmd("y")
-        text = ""
-        for _, _, kwargs in self.char1.msg.mock_calls:
-            text += kwargs.get("text", "")
+        text = "".join(
+            kwargs.get("text", "") for _, _, kwargs in self.char1.msg.mock_calls
+        )
         self.assertEqual(text, "Task completed while waiting for input.")
         self.assertFalse(self.task.exists())
 
@@ -518,16 +522,16 @@ class TestCmdTasks(BaseEvenniaCommandTest):
         self.assertTrue(self.task.get_id(), 1)
         self.char1.msg = Mock()
         self.char1.execute_cmd("y")
-        text = ""
-        for _, _, kwargs in self.char1.msg.mock_calls:
-            text += kwargs.get("text", "")
+        text = "".join(
+            kwargs.get("text", "") for _, _, kwargs in self.char1.msg.mock_calls
+        )
         self.assertEqual(text, "Task completed while waiting for input.")
 
     def test_misformed_command(self):
         wanted_msg = (
             "Task command misformed.|Proper format tasks[/switch] [function name or task id]"
         )
-        self.call(system.CmdTasks(), f"/cancel", wanted_msg)
+        self.call(system.CmdTasks(), "/cancel", wanted_msg)
 
 
 class TestAdmin(BaseEvenniaCommandTest):
@@ -557,7 +561,7 @@ class TestAdmin(BaseEvenniaCommandTest):
         self.call(
             admin.CmdForce(),
             "Char2=say test",
-            'Char2(#{}) says, "test"|You have forced Char2 to: say test'.format(cid),
+            f'Char2(#{cid}) says, "test"|You have forced Char2 to: say test',
         )
 
 
@@ -720,14 +724,14 @@ class TestBuilding(BaseEvenniaCommandTest):
         name = settings.BASE_OBJECT_TYPECLASS.rsplit(".", 1)[1]
         self.call(
             building.CmdCreate(),
-            "/d TestObj1",  # /d switch is abbreviated form of /drop
-            "You create a new %s: TestObj1." % name,
+            "/d TestObj1",
+            f"You create a new {name}: TestObj1.",
         )
         self.call(building.CmdCreate(), "", "Usage: ")
         self.call(
             building.CmdCreate(),
             "TestObj1;foo;bar",
-            "You create a new %s: TestObj1 (aliases: foo, bar)." % name,
+            f"You create a new {name}: TestObj1 (aliases: foo, bar).",
         )
 
     def test_examine(self):
@@ -762,12 +766,16 @@ class TestBuilding(BaseEvenniaCommandTest):
         self.call(
             building.CmdSetObjAlias(),
             "Obj = TestObj1b",
-            "Alias(es) for 'Obj(#{})' set to 'testobj1b'.".format(oid),
+            f"Alias(es) for 'Obj(#{oid})' set to 'testobj1b'.",
         )
         self.call(building.CmdSetObjAlias(), "", "Usage: ")
         self.call(building.CmdSetObjAlias(), "NotFound =", "Could not find 'NotFound'.")
 
-        self.call(building.CmdSetObjAlias(), "Obj", "Aliases for Obj(#{}): 'testobj1b'".format(oid))
+        self.call(
+            building.CmdSetObjAlias(),
+            "Obj",
+            f"Aliases for Obj(#{oid}): 'testobj1b'",
+        )
         self.call(building.CmdSetObjAlias(), "Obj2 =", "Cleared aliases from Obj2")
         self.call(building.CmdSetObjAlias(), "Obj2 =", "No aliases to clear.")
 
@@ -1191,7 +1199,9 @@ class TestBuilding(BaseEvenniaCommandTest):
     def test_desc(self):
         oid = self.obj2.id
         self.call(
-            building.CmdDesc(), "Obj2=TestDesc", "The description was set on Obj2(#{}).".format(oid)
+            building.CmdDesc(),
+            "Obj2=TestDesc",
+            f"The description was set on Obj2(#{oid}).",
         )
         self.call(building.CmdDesc(), "", "Usage: ")
 
@@ -1213,7 +1223,11 @@ class TestBuilding(BaseEvenniaCommandTest):
         oid = self.obj2.id
         o2d = self.obj2.db.desc
         r1d = self.room1.db.desc
-        self.call(building.CmdDesc(), "Obj2=", "The description was set on Obj2(#{}).".format(oid))
+        self.call(
+            building.CmdDesc(),
+            "Obj2=",
+            f"The description was set on Obj2(#{oid}).",
+        )
         assert self.obj2.db.desc == "" and self.obj2.db.desc != o2d
         assert self.room1.db.desc == r1d
 
@@ -1222,7 +1236,9 @@ class TestBuilding(BaseEvenniaCommandTest):
         rid = self.room1.id
         o2d = self.obj2.db.desc
         r1d = self.room1.db.desc
-        self.call(building.CmdDesc(), "Obj2", "The description was set on Room(#{}).".format(rid))
+        self.call(
+            building.CmdDesc(), "Obj2", f"The description was set on Room(#{rid})."
+        )
         assert self.obj2.db.desc == o2d
         assert self.room1.db.desc == "Obj2" and self.room1.db.desc != r1d
 
@@ -1249,9 +1265,7 @@ class TestBuilding(BaseEvenniaCommandTest):
         self.call(
             building.CmdDestroy(),
             self.room2.dbref,
-            "Char2(#{}) arrives to Room(#{}) from Room2(#{}).|Room2 was destroyed.".format(
-                charid, room1id, room2id
-            ),
+            f"Char2(#{charid}) arrives to Room(#{room1id}) from Room2(#{room2id}).|Room2 was destroyed.",
         )
         building.CmdDestroy.confirm = confirm
 
@@ -1260,7 +1274,7 @@ class TestBuilding(BaseEvenniaCommandTest):
         building.CmdDestroy.confirm = False
         self.call(
             building.CmdDestroy(),
-            "{}-{}".format(self.obj1.dbref, self.obj2.dbref),
+            f"{self.obj1.dbref}-{self.obj2.dbref}",
             "Obj was destroyed.\nObj2 was destroyed.",
         )
 
@@ -1313,17 +1327,17 @@ class TestBuilding(BaseEvenniaCommandTest):
         )
         self.call(
             building.CmdLink(),
-            "/twoway TestExit={}".format(self.exit.dbref),
+            f"/twoway TestExit={self.exit.dbref}",
             "Link created TestExit2 (in Room2) <-> out (in Room) (two-way).",
         )
         self.call(
             building.CmdLink(),
-            "/twoway TestExit={}".format(self.room1.dbref),
+            f"/twoway TestExit={self.room1.dbref}",
             "To create a two-way link, TestExit2 and Room must both have a location ",
         )
         self.call(
             building.CmdLink(),
-            "/twoway {}={}".format(self.exit.dbref, self.exit.dbref),
+            f"/twoway {self.exit.dbref}={self.exit.dbref}",
             "Cannot link an object to itself.",
         )
         self.call(building.CmdLink(), "", "Usage: ")
@@ -1462,8 +1476,8 @@ class TestBuilding(BaseEvenniaCommandTest):
         rmax = rid2 + 100
         self.call(building.CmdFind(), "", "Usage: ")
         self.call(building.CmdFind(), "oom2", "One Match")
-        self.call(building.CmdFind(), "oom2 = 1-{}".format(rmax), "One Match")
-        self.call(building.CmdFind(), "oom2 = 1 {}".format(rmax), "One Match")  # space works too
+        self.call(building.CmdFind(), f"oom2 = 1-{rmax}", "One Match")
+        self.call(building.CmdFind(), f"oom2 = 1 {rmax}", "One Match")
         self.call(building.CmdFind(), "Char2", "One Match", cmdstring="locate")
         self.call(
             building.CmdFind(),
@@ -1573,10 +1587,8 @@ class TestBuilding(BaseEvenniaCommandTest):
 
         self.call(
             building.CmdScripts(),
-            "/delete #{}-#{}".format(script1.id, script3.id),
-            f"Global Script Deleted - #{script1.id} (evennia.scripts.scripts.DefaultScript)|"
-            f"Global Script Deleted - #{script2.id} (evennia.scripts.scripts.DefaultScript)|"
-            f"Global Script Deleted - #{script3.id} (evennia.scripts.scripts.DefaultScript)",
+            f"/delete #{script1.id}-#{script3.id}",
+            f"Global Script Deleted - #{script1.id} (evennia.scripts.scripts.DefaultScript)|Global Script Deleted - #{script2.id} (evennia.scripts.scripts.DefaultScript)|Global Script Deleted - #{script3.id} (evennia.scripts.scripts.DefaultScript)",
             inputs=["y"],
         )
         self.assertFalse(script1.pk)
@@ -1597,8 +1609,7 @@ class TestBuilding(BaseEvenniaCommandTest):
         self.call(
             building.CmdTeleport(),
             "Obj = Room2",
-            "Obj(#{}) is leaving Room(#{}), heading for Room2(#{}).|Teleported Obj -> Room2."
-            .format(oid, rid, rid2),
+            f"Obj(#{oid}) is leaving Room(#{rid}), heading for Room2(#{rid2}).|Teleported Obj -> Room2.",
         )
         self.call(building.CmdTeleport(), "NotFound = Room", "Could not find 'NotFound'.")
         self.call(
@@ -1606,7 +1617,7 @@ class TestBuilding(BaseEvenniaCommandTest):
         )
 
         self.call(building.CmdTeleport(), "/tonone Obj2", "Teleported Obj2 -> None-location.")
-        self.call(building.CmdTeleport(), "/quiet Room2", "Room2(#{})".format(rid2))
+        self.call(building.CmdTeleport(), "/quiet Room2", f"Room2(#{rid2})")
         self.call(
             building.CmdTeleport(),
             "/t",  # /t switch is abbreviated form of /tonone

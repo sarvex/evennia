@@ -178,16 +178,13 @@ def get_worn_clothes(character, exclude_covered=False):
                                      the CLOTHING_TYPE_ORDER option specified
                                      in this module.
     """
-    clothes_list = []
-    for thing in character.contents:
-        # If uncovered or not excluding covered items
-        if not thing.db.covered_by or exclude_covered is False:
-            # If 'worn' is True, add to the list
-            if thing.db.worn:
-                clothes_list.append(thing)
-    # Might as well put them in order here too.
-    ordered_clothes_list = order_clothes_list(clothes_list)
-    return ordered_clothes_list
+    clothes_list = [
+        thing
+        for thing in character.contents
+        if (not thing.db.covered_by or exclude_covered is False)
+        and thing.db.worn
+    ]
+    return order_clothes_list(clothes_list)
 
 
 def clothing_type_count(clothes_list):
@@ -228,12 +225,11 @@ def single_type_count(clothes_list, type):
         type_count (int): Number of garments of the specified type in the given
                           list of clothing objects
     """
-    type_count = 0
-    for garment in clothes_list:
-        if garment.db.clothing_type:
-            if garment.db.clothing_type == type:
-                type_count += 1
-    return type_count
+    return sum(
+        1
+        for garment in clothes_list
+        if garment.db.clothing_type and garment.db.clothing_type == type
+    )
 
 
 class ContribClothing(DefaultObject):
@@ -278,7 +274,7 @@ class ContribClothing(DefaultObject):
                 message = f"$You() $conj(put) on {self.name}"
             if to_cover:
                 message += f", covering {iter_to_str(to_cover)}"
-            wearer.location.msg_contents(message + ".", from_obj=wearer)
+            wearer.location.msg_contents(f"{message}.", from_obj=wearer)
 
     def remove(self, wearer, quiet=False):
         """
@@ -301,9 +297,9 @@ class ContribClothing(DefaultObject):
         # Echo a message to the room
         if not quiet:
             remove_message = f"$You() $conj(remove) {self.name}"
-            if len(uncovered_list) > 0:
+            if uncovered_list:
                 remove_message += f", revealing {iter_to_str(uncovered_list)}"
-            wearer.location.msg_contents(remove_message + ".", from_obj=wearer)
+            wearer.location.msg_contents(f"{remove_message}.", from_obj=wearer)
 
     def at_get(self, getter):
         """
@@ -323,9 +319,7 @@ class ContribClothing(DefaultObject):
             before it is even started.
         """
         # Covered clothing cannot be removed, dropped, or otherwise relocated
-        if self.db.covered_by:
-            return False
-        return True
+        return not self.db.covered_by
 
 
 class ClothedCharacter(DefaultCharacter):
@@ -465,20 +459,17 @@ class CmdWear(MuxCommand):
             if not self.rhs:
                 # If no wearstyle was provided and the clothing is already being worn, do nothing
                 self.caller.msg(f"You're already wearing your {clothing.name}.")
-                return
             elif len(self.rhs) > WEARSTYLE_MAXLENGTH:
                 self.caller.msg(
                     f"Please keep your wear style message to less than {WEARSTYLE_MAXLENGTH} characters."
                 )
-                return
             else:
                 # Adjust the wearstyle
                 clothing.db.worn = self.rhs
                 self.caller.location.msg_contents(
                     f"$You() $conj(wear) {clothing.name} {self.rhs}.", from_obj=self.caller
                 )
-                return
-
+            return
         already_worn = get_worn_clothes(self.caller)
 
         # Enforce overall clothing limit.
@@ -650,8 +641,6 @@ class CmdInventory(MuxCommand):
             self.caller.msg("You are not carrying or wearing anything.")
             return
 
-        message_list = []
-
         items = self.caller.contents
 
         carry_table = evtable.EvTable(border="header")
@@ -660,16 +649,16 @@ class CmdInventory(MuxCommand):
         carried = [obj for obj in items if not obj.db.worn]
         worn = [obj for obj in items if obj.db.worn]
 
-        message_list.append("|wYou are carrying:|n")
         for item in carried:
             carry_table.add_row(
                 item.get_display_name(self.caller), item.get_display_desc(self.caller)
             )
         if carry_table.nrows == 0:
             carry_table.add_row("Nothing.", "")
-        message_list.append(str(carry_table))
-
-        message_list.append("|wYou are wearing:|n")
+        message_list = [
+            "|wYou are carrying:|n",
+            *(str(carry_table), "|wYou are wearing:|n"),
+        ]
         for item in worn:
             item_name = item.get_display_name(self.caller)
             if item.db.covered_by:

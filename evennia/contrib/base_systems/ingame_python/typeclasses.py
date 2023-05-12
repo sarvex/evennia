@@ -260,7 +260,7 @@ class EventCharacter(DefaultCharacter):
         if not source_location and self.location.has_account:
             # This was created from nowhere and added to an account's
             # inventory; it's probably the result of a create command.
-            string = "You now have %s in your possession." % self.get_display_name(self.location)
+            string = f"You now have {self.get_display_name(self.location)} in your possession."
             self.location.msg(string)
             return
 
@@ -276,12 +276,11 @@ class EventCharacter(DefaultCharacter):
         mapping.update({"character": self})
 
         if origin:
-            exits = [
+            if exits := [
                 o
                 for o in destination.contents
                 if o.location is destination and o.destination is origin
-            ]
-            if exits:
+            ]:
                 exits[0].callbacks.call(
                     "msg_arrive", self, exits[0], origin, destination, string, mapping
                 )
@@ -319,22 +318,18 @@ class EventCharacter(DefaultCharacter):
             can = self.callbacks.call("can_move", self, origin, destination)
             if can:
                 can = origin.callbacks.call("can_move", self, origin)
-                if can:
-                    # Call other character's 'can_part' event
-                    for present in [
-                        o
-                        for o in origin.contents
-                        if isinstance(o, DefaultCharacter) and o is not self
-                    ]:
-                        can = present.callbacks.call("can_part", present, self)
-                        if not can:
-                            break
+            if can:
+                # Call other character's 'can_part' event
+                for present in [
+                    o
+                    for o in origin.contents
+                    if isinstance(o, DefaultCharacter) and o is not self
+                ]:
+                    can = present.callbacks.call("can_part", present, self)
+                    if not can:
+                        break
 
-            if can is None:
-                return True
-
-            return can
-
+            return True if can is None else can
         return True
 
     def at_post_move(self, source_location, move_type="move", **kwargs):

@@ -50,16 +50,12 @@ def deploy():
     names_to_skip = legacy_versions + ["build"]
 
     for file_path in glob.glob("*"):
-        # run from inside the docs/ dir
-        # delete old but active doc branches
-
         if file_path in names_to_skip:
             # skip deleting the legacy brancehs
             continue
-        else:
-            # we want to delete both active branches and old symlinks
-            os.system(f"rm -Rf {file_path}")
-            print(f"removed file_path: {file_path}")
+        # we want to delete both active branches and old symlinks
+        os.system(f"rm -Rf {file_path}")
+        print(f"removed file_path: {file_path}")
 
     # copy built branches to current dir
     os.system("ls")

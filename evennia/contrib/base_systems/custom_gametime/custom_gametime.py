@@ -118,7 +118,7 @@ def gametime_to_realtime(format=False, **kwargs):
             name = name[:-1]
 
         if name not in UNITS:
-            raise ValueError("the unit {} isn't defined as a valid " "game time unit".format(name))
+            raise ValueError(f"the unit {name} isn't defined as a valid game time unit")
         rtime += value * UNITS[name]
     rtime /= TIMEFACTOR
     if format:
@@ -324,8 +324,7 @@ class GametimeScript(DefaultScript):
 
         from evennia.utils.utils import calledby
 
-        callback = self.db.callback
-        if callback:
+        if callback := self.db.callback:
             callback()
 
         seconds = real_seconds_until(**self.db.gametime)

@@ -13,6 +13,7 @@ We also need to build the toc-tree and should do so automatically for now.
 
 """
 
+
 import datetime
 import glob
 import re
@@ -45,7 +46,7 @@ _INDEX_PREFIX = f"""
 _WIKI_DIR = "../../../evennia.wiki/"
 _INFILES = [
     path
-    for path in sorted(glob.glob(_WIKI_DIR + "/*.md"))
+    for path in sorted(glob.glob(f"{_WIKI_DIR}/*.md"))
     if path.rsplit("/", 1)[-1] not in _IGNORE_FILES
 ]
 _FILENAMES = [path.rsplit("/", 1)[-1] for path in _INFILES]
@@ -75,7 +76,7 @@ _CUSTOM_LINK_REMAP = {
     "Using-Mux-as-a-Standard": "Using-MUX-as-a-Standard",
     "Building-quickstart": "Building-Quickstart",
     "Adding-Object-Typeclass-tutorial": "Adding-Object-Typeclass-Tutorial",
-    "EvTable": _API_PREFIX + "evennia.utils#module-evennia.utils.evtable",
+    "EvTable": f"{_API_PREFIX}evennia.utils#module-evennia.utils.evtable",
 }
 # complete reference remaps
 _REF_REMAP = {
@@ -150,28 +151,25 @@ def _sub_link(match):
     url, *anchor = url.rsplit("#", 1)
 
     if url in _ABSOLUTE_LINK_SKIP:
-        url += ("#" + anchor[0]) if anchor else ""
+        url += f"#{anchor[0]}" if anchor else ""
         return f"[{txt}]({url})"
 
     if url.startswith("evennia"):
         print(f" Convert evennia url {url} -> {_CODE_PREFIX + url}")
         url = _API_PREFIX + url
 
-    if url.startswith(_OLD_WIKI_URL):
-        # old wiki is an url on the form https://<wikiurl>/wiki/TextTags#header
-        # we don't refer to the old wiki but use internal mapping.
-        if len(url) != len(_OLD_WIKI_URL):
-            url_conv = url[_OLD_WIKI_URL_LEN:]
-            url_conv = re.sub(r"%20", "-", url_conv)
-            if url_conv.endswith("/_edit"):
-                # this is actually a bug in the wiki format
-                url_conv = url_conv[:-6]
-            if url_conv.startswith("evennia"):
-                # this is an api link
-                url_conv = _CODE_PREFIX + url_conv
+    if url.startswith(_OLD_WIKI_URL) and len(url) != len(_OLD_WIKI_URL):
+        url_conv = url[_OLD_WIKI_URL_LEN:]
+        url_conv = re.sub(r"%20", "-", url_conv)
+        if url_conv.endswith("/_edit"):
+            # this is actually a bug in the wiki format
+            url_conv = url_conv[:-6]
+        if url_conv.startswith("evennia"):
+            # this is an api link
+            url_conv = _CODE_PREFIX + url_conv
 
-            print(f" Converting wiki-url: {url} -> {url_conv}")
-            url = url_conv
+        print(f" Converting wiki-url: {url} -> {url_conv}")
+        url = url_conv
 
     if not url and anchor:
         # this happens on same-file #labels in wiki
@@ -180,7 +178,7 @@ def _sub_link(match):
     if url not in _FILENAMES and not url.startswith("http") and not url.startswith(_CODE_PREFIX):
 
         url_cap = url.capitalize()
-        url_plur = url[:-3] + "s" + ".md"
+        url_plur = f"{url[:-3]}s.md"
         url_cap_plur = url_plur.capitalize()
 
         link = f"[{txt}]({url})"
@@ -190,10 +188,10 @@ def _sub_link(match):
             print(f" Replacing (capitalized): {url.capitalize()}")
             url = url_cap
         elif url_plur in _FILENAMES:
-            print(f" Replacing (pluralized): {url + 's'}")
+            print(f" Replacing (pluralized): {url}s")
             url = url_plur
         elif url_cap_plur in _FILENAMES:
-            print(f" Replacing (capitalized, pluralized): {url.capitalize() + 's'}")
+            print(f" Replacing (capitalized, pluralized): {url.capitalize()}s")
             url = url_cap_plur
         elif url.lower() in _FILENAMESLOW:
             ind = _FILENAMESLOW.index(url.lower())
@@ -207,7 +205,7 @@ def _sub_link(match):
             #     url = inp.strip()
 
     if anchor:
-        url += "#" + anchor[0]
+        url += f"#{anchor[0]}"
 
     return f"[{txt}]({url})"
 

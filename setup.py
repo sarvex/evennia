@@ -19,14 +19,13 @@ def get_evennia_executable():
     this means creating a .bat file.
 
     """
-    if OS_WINDOWS:
-        batpath = os.path.join("bin", "windows", "evennia.bat")
-        scriptpath = os.path.join(sys.prefix, "Scripts", "evennia_launcher.py")
-        with open(batpath, "w") as batfile:
-            batfile.write('@"%s" "%s" %%*' % (sys.executable, scriptpath))
-        return [batpath, os.path.join("bin", "windows", "evennia_launcher.py")]
-    else:
+    if not OS_WINDOWS:
         return [os.path.join("bin", "unix", "evennia")]
+    batpath = os.path.join("bin", "windows", "evennia.bat")
+    scriptpath = os.path.join(sys.prefix, "Scripts", "evennia_launcher.py")
+    with open(batpath, "w") as batfile:
+        batfile.write('@"%s" "%s" %%*' % (sys.executable, scriptpath))
+    return [batpath, os.path.join("bin", "windows", "evennia_launcher.py")]
 
 
 def get_all_files():

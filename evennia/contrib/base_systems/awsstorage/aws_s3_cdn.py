@@ -31,6 +31,7 @@ See the ./README.md file for details and install instructions.
 
 """
 
+
 from django.core.exceptions import (
     ImproperlyConfigured,
     SuspiciousFileOperation,
@@ -53,7 +54,7 @@ try:
             )
         )
 
-    if "mygame-evennia" == ev_settings.AWS_STORAGE_BUCKET_NAME:
+    if ev_settings.AWS_STORAGE_BUCKET_NAME == "mygame-evennia":
         raise ImproperlyConfigured(
             (
                 "You must customize your AWS_STORAGE_BUCKET_NAME"
@@ -90,9 +91,11 @@ try:
     from botocore.client import Config
     from botocore.exceptions import ClientError
 except ImportError as e:
-    raise ImproperlyConfigured("Couldn't load S3 bindings. %s Did you run 'pip install boto3?'" % e)
+    raise ImproperlyConfigured(
+        f"Couldn't load S3 bindings. {e} Did you run 'pip install boto3?'"
+    )
 
-boto3_version_info = tuple([int(i) for i in boto3_version.split(".")])
+boto3_version_info = tuple(int(i) for i in boto3_version.split("."))
 
 
 def setting(name, default=None):
@@ -131,11 +134,11 @@ def safe_join(base, *paths):
     base_path = base_path.rstrip("/")
     paths = [force_text(p) for p in paths]
 
-    final_path = base_path + "/"
+    final_path = f"{base_path}/"
     for path in paths:
         _final_path = posixpath.normpath(posixpath.join(final_path, path))
         # posixpath.normpath() strips the trailing /. Add it back.
-        if path.endswith("/") or _final_path + "/" == final_path:
+        if path.endswith("/") or f"{_final_path}/" == final_path:
             _final_path += "/"
         final_path = _final_path
     if final_path == base_path:
@@ -165,11 +168,7 @@ def check_location(storage):
     if storage.location.startswith("/"):
         correct = storage.location.lstrip("/")
         raise ImproperlyConfigured(
-            "{}.location cannot begin with a leading slash. Found '{}'. Use '{}' instead.".format(
-                storage.__class__.__name__,
-                storage.location,
-                correct,
-            )
+            f"{storage.__class__.__name__}.location cannot begin with a leading slash. Found '{storage.location}'. Use '{correct}' instead."
         )
 
 
@@ -185,8 +184,7 @@ def lookup_env(names):
 
     """
     for name in names:
-        value = os.environ.get(name)
-        if value:
+        if value := os.environ.get(name):
             return value
 
 
@@ -209,14 +207,12 @@ def get_available_overwrite_name(name, max_length):
     file_root, file_ext = os.path.splitext(file_name)
     truncation = len(name) - max_length
 
-    file_root = file_root[:-truncation]
-    if not file_root:
+    if file_root := file_root[:-truncation]:
+        return os.path.join(dir_name, f"{file_root}{file_ext}")
+    else:
         raise SuspiciousFileOperation(
-            'aws-s3-cdn tried to truncate away entire filename "%s". '
-            "Please make sure that the corresponding file field "
-            'allows sufficient "max_length".' % name
+            f'aws-s3-cdn tried to truncate away entire filename "{name}". Please make sure that the corresponding file field allows sufficient "max_length".'
         )
-    return os.path.join(dir_name, "{}{}".format(file_root, file_ext))
 
 
 @deconstructible
@@ -593,10 +589,7 @@ class S3Boto3Storage(Storage):
                     # Also note that Amazon specifically disallows "us-east-1" when passing bucket
                     # region names; LocationConstraint *must* be blank to create in US Standard.
 
-                    if self.bucket_acl:
-                        bucket_params = {"ACL": self.bucket_acl}
-                    else:
-                        bucket_params = {}
+                    bucket_params = {"ACL": self.bucket_acl} if self.bucket_acl else {}
                     region_name = self.connection.meta.client.meta.region_name
                     if region_name != "us-east-1":
                         bucket_params["CreateBucketConfiguration"] = {
@@ -630,7 +623,7 @@ class S3Boto3Storage(Storage):
         try:
             return safe_join(self.location, name)
         except ValueError:
-            raise SuspiciousOperation("Attempted access to '%s' denied." % name)
+            raise SuspiciousOperation(f"Attempted access to '{name}' denied.")
 
     def _encode_name(self, name):
         return smart_text(name, encoding=self.file_name_charset)
@@ -666,7 +659,7 @@ class S3Boto3Storage(Storage):
             f = S3Boto3StorageFile(name, mode, self)
         except ClientError as err:
             if err.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
-                raise IOError("File does not exist: %s" % name)
+                raise IOError(f"File does not exist: {name}")
             raise  # Let it bubble up if it was some other error
         return f
 
@@ -734,10 +727,14 @@ class S3Boto3Storage(Storage):
         paginator = self.connection.meta.client.get_paginator("list_objects")
         pages = paginator.paginate(Bucket=self.bucket_name, Delimiter="/", Prefix=path)
         for page in pages:
-            for entry in page.get("CommonPrefixes", ()):
-                directories.append(posixpath.relpath(entry["Prefix"], path))
-            for entry in page.get("Contents", ()):
-                files.append(posixpath.relpath(entry["Key"], path))
+            directories.extend(
+                posixpath.relpath(entry["Prefix"], path)
+                for entry in page.get("CommonPrefixes", ())
+            )
+            files.extend(
+                posixpath.relpath(entry["Key"], path)
+                for entry in page.get("Contents", ())
+            )
         return directories, files
 
     def size(self, name):
@@ -746,8 +743,7 @@ class S3Boto3Storage(Storage):
         """
         name = self._normalize_name(self._clean_name(name))
         if self.entries:
-            entry = self.entries.get(name)
-            if entry:
+            if entry := self.entries.get(name):
                 return entry.size if hasattr(entry, "size") else entry.content_length
             return 0
         return self.bucket.Object(self._encode_name(name)).content_length
@@ -770,7 +766,7 @@ class S3Boto3Storage(Storage):
         if encoding:
             params["ContentEncoding"] = encoding
 
-        params.update(self.get_object_parameters(name))
+        params |= self.get_object_parameters(name)
         return params
 
     def get_object_parameters(self, name):
@@ -844,7 +840,7 @@ class S3Boto3Storage(Storage):
         # Preserve the trailing slash after normalizing the path.
         name = self._normalize_name(self._clean_name(name))
         if self.custom_domain:
-            return "{}//{}/{}".format(self.url_protocol, self.custom_domain, filepath_to_uri(name))
+            return f"{self.url_protocol}//{self.custom_domain}/{filepath_to_uri(name)}"
         if expire is None:
             expire = self.querystring_expire
 
@@ -854,9 +850,7 @@ class S3Boto3Storage(Storage):
         url = self.bucket.meta.client.generate_presigned_url(
             "get_object", Params=params, ExpiresIn=expire
         )
-        if self.querystring_auth:
-            return url
-        return self._strip_signing_parameters(url)
+        return url if self.querystring_auth else self._strip_signing_parameters(url)
 
     def get_available_name(self, name, max_length=None):
         """Overwrite existing file with the same name."""

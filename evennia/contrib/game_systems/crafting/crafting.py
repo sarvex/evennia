@@ -632,16 +632,18 @@ class CraftingRecipe(CraftingRecipeBase):
         involved_tools = iter_to_str(kwargs.get("tools", ""))
         involved_cons = iter_to_str(kwargs.get("consumables", ""))
 
-        # build template context
-        mapping = {"missing": missing, "excess": excess}
-        mapping.update(
-            {
+        mapping = (
+            {"missing": missing, "excess": excess}
+            | {
                 f"i{ind}": self.consumable_names[ind]
-                for ind, name in enumerate(self.consumable_names or self.consumable_tags)
+                for ind, name in enumerate(
+                    self.consumable_names or self.consumable_tags
+                )
             }
-        )
-        mapping.update(
-            {f"o{ind}": self.output_names[ind] for ind, name in enumerate(self.output_names)}
+            | {
+                f"o{ind}": self.output_names[ind]
+                for ind, name in enumerate(self.output_names)
+            }
         )
         mapping["tools"] = involved_tools
         mapping["consumables"] = involved_cons
@@ -700,26 +702,28 @@ class CraftingRecipe(CraftingRecipeBase):
         tool_tags = tool_kwargs.pop("tags", [])
         cons_tags = consumable_kwargs.pop("tags", [])
 
-        tools = []
-        for itag, tag in enumerate(cls.tool_tags):
-
-            tools.append(
-                create_object(
-                    key=tool_key or (cls.tool_names[itag] if cls.tool_names else tag.capitalize()),
-                    tags=[(tag, cls.tool_tag_category), *tool_tags],
-                    **tool_kwargs,
-                )
+        tools = [
+            create_object(
+                key=tool_key
+                or (cls.tool_names[itag] if cls.tool_names else tag.capitalize()),
+                tags=[(tag, cls.tool_tag_category), *tool_tags],
+                **tool_kwargs,
             )
-        consumables = []
-        for itag, tag in enumerate(cls.consumable_tags):
-            consumables.append(
-                create_object(
-                    key=cons_key
-                    or (cls.consumable_names[itag] if cls.consumable_names else tag.capitalize()),
-                    tags=[(tag, cls.consumable_tag_category), *cons_tags],
-                    **consumable_kwargs,
-                )
+            for itag, tag in enumerate(cls.tool_tags)
+        ]
+        consumables = [
+            create_object(
+                key=cons_key
+                or (
+                    cls.consumable_names[itag]
+                    if cls.consumable_names
+                    else tag.capitalize()
+                ),
+                tags=[(tag, cls.consumable_tag_category), *cons_tags],
+                **consumable_kwargs,
             )
+            for itag, tag in enumerate(cls.consumable_tags)
+        ]
         return tools, consumables
 
     def pre_craft(self, **kwargs):
@@ -812,8 +816,8 @@ class CraftingRecipe(CraftingRecipeBase):
 
         # we set these so they are available for error management at all times,
         # they will be updated with the actual values at the end
-        self.validated_tools = [obj for obj in tool_map]
-        self.validated_consumables = [obj for obj in consumable_map]
+        self.validated_tools = list(tool_map)
+        self.validated_consumables = list(consumable_map)
 
         tools = _check_completeness(
             tool_map,
@@ -1090,9 +1094,6 @@ class CmdCraft(Command):
                 return
             tools.append(obj)
 
-        # perform craft and make sure result is in inventory
-        # (the recipe handles all returns to caller)
-        result = craft(caller, self.recipe, *(tools + ingredients))
-        if result:
+        if result := craft(caller, self.recipe, *(tools + ingredients)):
             for obj in result:
                 obj.location = caller

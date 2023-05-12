@@ -704,9 +704,7 @@ class TextToBBCODEparser(TextToHTMLparser):
 
         """
         cmd, text = [grp.replace('"', "\\&quot;") for grp in match.groups()]
-        val = f"[mxp=send cmd={cmd}]{text}[/mxp]"
-
-        return val
+        return f"[mxp=send cmd={cmd}]{text}[/mxp]"
 
     def sub_mxp_urls(self, match):
         """
@@ -719,9 +717,7 @@ class TextToBBCODEparser(TextToHTMLparser):
         """
 
         url, text = [grp.replace('"', "\\&quot;") for grp in match.groups()]
-        val = f"[url={url}]{text}[/url]"
-
-        return val
+        return f"[url={url}]{text}[/url]"
 
     def sub_text(self, match):
         """
@@ -736,10 +732,7 @@ class TextToBBCODEparser(TextToHTMLparser):
 
         """
         cdict = match.groupdict()
-        if cdict["lineend"]:
-            return "\n"
-
-        return None
+        return "\n" if cdict["lineend"] else None
 
     def format_styles(self, text):
         """
@@ -771,7 +764,7 @@ class TextToBBCODEparser(TextToHTMLparser):
         root_tag = RootTag()
         current_tag = root_tag
 
-        for i, substr in enumerate(str_list):
+        for substr in str_list:
             # reset all current styling
             if substr == ANSI_NORMAL:
                 # close any existing span if necessary
@@ -789,19 +782,16 @@ class TextToBBCODEparser(TextToHTMLparser):
                 underline = False
                 new_style = False
 
-            # change color
             elif substr in self.ansi_color_codes + self.xterm_fg_codes:
                 # set new color
                 fg = substr
                 new_style = True
 
-            # change bg color
             elif substr in self.ansi_bg_codes + self.xterm_bg_codes:
                 # set new bg
                 bg = substr
                 new_style = True
 
-            # non-color codes
             elif substr in self.style_codes:
                 new_style = True
 
@@ -841,12 +831,12 @@ class TextToBBCODEparser(TextToHTMLparser):
 
                     if inverse:
                         # inverse means swap fg and bg indices
-                        bg_class = "bgcolor-{}".format(str(color_index).rjust(3, "0"))
-                        color_class = "color-{}".format(str(bg_index).rjust(3, "0"))
+                        bg_class = f'bgcolor-{str(color_index).rjust(3, "0")}'
+                        color_class = f'color-{str(bg_index).rjust(3, "0")}'
                     else:
                         # use fg and bg indices for classes
-                        bg_class = "bgcolor-{}".format(str(bg_index).rjust(3, "0"))
-                        color_class = "color-{}".format(str(color_index).rjust(3, "0"))
+                        bg_class = f'bgcolor-{str(bg_index).rjust(3, "0")}'
+                        color_class = f'color-{str(color_index).rjust(3, "0")}'
 
                     # black bg is the default, don't explicitly style
                     if bg_class != "bgcolor-000":
@@ -879,30 +869,17 @@ class TextToBBCODEparser(TextToHTMLparser):
                     if underline:
                         current_tag = UnderlineTag(current_tag)
 
-                    if bgcolor_tag:
-                        bgcolor_tag.set_parent(current_tag)
-                        current_tag = bgcolor_tag
+                if bgcolor_tag:
+                    bgcolor_tag.set_parent(current_tag)
+                    current_tag = bgcolor_tag
 
-                    if color_tag:
-                        color_tag.set_parent(current_tag)
-                        current_tag = color_tag
+                if color_tag:
+                    color_tag.set_parent(current_tag)
+                    current_tag = color_tag
 
-                    new_tag.set_parent(current_tag)
-                    current_tag = new_tag
-                else:
-                    if bgcolor_tag:
-                        bgcolor_tag.set_parent(current_tag)
-                        current_tag = bgcolor_tag
-
-                    if color_tag:
-                        color_tag.set_parent(current_tag)
-                        current_tag = color_tag
-
-                    new_tag.set_parent(current_tag)
-                    current_tag = new_tag
-
-        any_text = self._get_text_tag(root_tag)
-        if any_text:
+                new_tag.set_parent(current_tag)
+                current_tag = new_tag
+        if any_text := self._get_text_tag(root_tag):
             # Only append tags if text was added.
             last_part = str(root_tag)
             parts.append(last_part)

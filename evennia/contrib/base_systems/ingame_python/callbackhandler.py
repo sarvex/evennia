@@ -33,8 +33,7 @@ class CallbackHandler(object):
 
         """
         callbacks = {}
-        handler = type(self).script
-        if handler:
+        if handler := type(self).script:
             dicts = handler.get_callbacks(self.obj)
             for callback_name, in_list in dicts.items():
                 new_list = []
@@ -76,8 +75,7 @@ class CallbackHandler(object):
             Either the variable's value or None.
 
         """
-        handler = type(self).script
-        if handler:
+        if handler := type(self).script:
             return handler.get_variable(variable_name)
 
         return None
@@ -97,8 +95,7 @@ class CallbackHandler(object):
             The callback definition that was added or None.
 
         """
-        handler = type(self).script
-        if handler:
+        if handler := type(self).script:
             return self.format_callback(
                 handler.add_callback(
                     self.obj, callback_name, code, author=author, valid=valid, parameters=parameters
@@ -123,8 +120,7 @@ class CallbackHandler(object):
             RuntimeError if the callback is locked.
 
         """
-        handler = type(self).script
-        if handler:
+        if handler := type(self).script:
             return self.format_callback(
                 handler.edit_callback(
                     self.obj, callback_name, number, code, author=author, valid=valid
@@ -143,8 +139,7 @@ class CallbackHandler(object):
             RuntimeError if the callback is locked.
 
         """
-        handler = type(self).script
-        if handler:
+        if handler := type(self).script:
             handler.del_callback(self.obj, callback_name, number)
 
     def call(self, callback_name, *args, **kwargs):
@@ -166,8 +161,7 @@ class CallbackHandler(object):
             None.
 
         """
-        handler = type(self).script
-        if handler:
+        if handler := type(self).script:
             return handler.call(self.obj, callback_name, *args, **kwargs)
 
         return None

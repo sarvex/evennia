@@ -89,15 +89,17 @@ def run_update(no_autodoc=False):
         aliases = f" [{', '.join(sorted(cmd.aliases))}]" if aliases else ""
         cmdlink = f"[**{cmd.key}**{aliases}](api:{cmd.__module__}#{cmd.__name__})"
         category = f"help-category: _{cmd.help_category.capitalize()}_"
-        cmdset = cmd_to_cmdset_map.get(f"{cmd.__module__}.{cmd.__name__}", None)
-        if cmdset:
-            cmodule = cmdset.__module__
-            cname = cmdset.__class__.__name__
-            cmdsetlink = f"cmdset: [{cname}](api:{cmodule}#{cname}), "
-        else:
+        if not (
+            cmdset := cmd_to_cmdset_map.get(
+                f"{cmd.__module__}.{cmd.__name__}", None
+            )
+        ):
             # we skip commands not in the default cmdsets
             continue
 
+        cmodule = cmdset.__module__
+        cname = cmdset.__class__.__name__
+        cmdsetlink = f"cmdset: [{cname}](api:{cmodule}#{cname}), "
         cmd_infos.append(f"{cmdlink} ({cmdsetlink}{category})")
 
     txt = PAGE.format(

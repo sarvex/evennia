@@ -147,9 +147,10 @@ def build_table(datalist, ncols):
     nlen = len(datalist)
     table_heading = "| " * (ncols) + "|"
     table_sep = "|---" * (ncols) + "|"
-    table = ""
-    for ir in range(0, nlen, ncols):
-        table += "| " + " | ".join(datalist[ir : ir + ncols]) + " |\n"
+    table = "".join(
+        "| " + " | ".join(datalist[ir : ir + ncols]) + " |\n"
+        for ir in range(0, nlen, ncols)
+    )
     return f"{table_heading}\n{table_sep}\n{table}"
 
 

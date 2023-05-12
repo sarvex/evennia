@@ -70,9 +70,7 @@ class CmdReload(COMMAND_DEFAULT_CLASS):
         """
         Reload the system.
         """
-        reason = ""
-        if self.args:
-            reason = "(Reason: %s) " % self.args.rstrip(".")
+        reason = f'(Reason: {self.args.rstrip(".")}) ' if self.args else ""
         if _BROADCAST_SERVER_RESTART_MESSAGES:
             SESSIONS.announce_all(f" Server restart initiated {reason}...")
         SESSIONS.portal_restart_server()
@@ -151,7 +149,7 @@ def _py_code(caller, buf):
     """
     measure_time = caller.db._py_measure_time
     client_raw = caller.db._py_clientraw
-    string = "Executing code%s ..." % (" (measure timing)" if measure_time else "")
+    string = f'Executing code{" (measure timing)" if measure_time else ""} ...'
     caller.msg(string)
     _run_code_snippet(
         caller, buf, mode="exec", measure_time=measure_time, client_raw=client_raw, show_input=False
@@ -188,9 +186,9 @@ def _run_code_snippet(
     if show_input:
         for session in sessions:
             try:
-                caller.msg(">>> %s" % pycode, session=session, options={"raw": True})
+                caller.msg(f">>> {pycode}", session=session, options={"raw": True})
             except TypeError:
-                caller.msg(">>> %s" % pycode, options={"raw": True})
+                caller.msg(f">>> {pycode}", options={"raw": True})
 
     try:
         # reroute standard output to game client console
@@ -231,7 +229,7 @@ def _run_code_snippet(
         errlist = traceback.format_exc().split("\n")
         if len(errlist) > 4:
             errlist = errlist[4:]
-        ret = "\n".join("%s" % line for line in errlist if line)
+        ret = "\n".join(f"{line}" for line in errlist if line)
     finally:
         # return to old stdout
         sys.stdout = old_stdout
@@ -242,7 +240,7 @@ def _run_code_snippet(
     elif isinstance(ret, tuple):
         # we must convert here to allow msg to pass it (a tuple is confused
         # with a outputfunc structure)
-        ret = str(ret)
+        ret = ret
 
     for session in sessions:
         try:
@@ -461,8 +459,9 @@ class CmdAccounts(COMMAND_DEFAULT_CLASS):
                 self.msg("Could not find an account by that name.")
                 return
             if len(accounts) > 1:
-                string = "There were multiple matches:\n"
-                string += "\n".join(" %s %s" % (account.id, account.key) for account in accounts)
+                string = "There were multiple matches:\n" + "\n".join(
+                    f" {account.id} {account.key}" for account in accounts
+                )
                 self.msg(string)
                 return
             account = accounts.first()
@@ -471,11 +470,7 @@ class CmdAccounts(COMMAND_DEFAULT_CLASS):
                 return
             username = account.username
             # ask for confirmation
-            confirm = (
-                "It is often better to block access to an account rather than to delete it. "
-                "|yAre you sure you want to permanently delete "
-                "account '|n{}|y'|n yes/[no]?".format(username)
-            )
+            confirm = f"It is often better to block access to an account rather than to delete it. |yAre you sure you want to permanently delete account '|n{username}|y'|n yes/[no]?"
             answer = yield (confirm)
             if answer.lower() not in ("y", "yes"):
                 caller.msg("Canceled deletion.")
@@ -492,15 +487,11 @@ class CmdAccounts(COMMAND_DEFAULT_CLASS):
                 f" {self.session.address})."
             )
             account.delete()
-            self.msg("Account %s was successfully deleted." % username)
+            self.msg(f"Account {username} was successfully deleted.")
             return
 
         # No switches, default to displaying a list of accounts.
-        if self.args and self.args.isdigit():
-            nlim = int(self.args)
-        else:
-            nlim = 10
-
+        nlim = int(self.args) if self.args and self.args.isdigit() else 10
         naccounts = AccountDB.objects.count()
 
         # typeclass table
@@ -580,8 +571,10 @@ class CmdService(COMMAND_DEFAULT_CLASS):
         try:
             service = service_collection.getServiceNamed(self.args)
         except Exception:
-            string = "Invalid service name. This command is case-sensitive. "
-            string += "See service/list for valid service name (enter the full name exactly)."
+            string = (
+                "Invalid service name. This command is case-sensitive. "
+                + "See service/list for valid service name (enter the full name exactly)."
+            )
             caller.msg(string)
             return
 
@@ -721,7 +714,7 @@ class CmdTime(COMMAND_DEFAULT_CLASS):
             width=78,
             border_top=0,
         )
-        epochtxt = "Epoch (%s)" % ("from settings" if settings.TIME_GAME_EPOCH else "server start")
+        epochtxt = f'Epoch ({"from settings" if settings.TIME_GAME_EPOCH else "server start"})'
         table2.add_row(epochtxt, datetime.datetime.fromtimestamp(gametime.game_epoch()))
         table2.add_row("Total time passed:", utils.time_format(gametime.gametime(), 2))
         table2.add_row(
@@ -932,11 +925,7 @@ class CmdTickers(COMMAND_DEFAULT_CLASS):
         for sub in all_subs:
             table.add_row(
                 sub[3],
-                "%s%s"
-                % (
-                    sub[0] or "[None]",
-                    sub[0] and " (#%s)" % (sub[0].id if hasattr(sub[0], "id") else "") or "",
-                ),
+                f"""{sub[0] or "[None]"}{sub[0] and f' (#{sub[0].id if hasattr(sub[0], "id") else ""})' or ""}""",
                 sub[1] if sub[1] else sub[2],
                 sub[4] or "[Unset]",
                 "*" if sub[5] else "-",
@@ -1001,18 +990,16 @@ class CmdTasks(COMMAND_DEFAULT_CLASS):
         if _TASK_HANDLER is None:
             from evennia.scripts.taskhandler import TASK_HANDLER as _TASK_HANDLER
 
-        # verify manipulating the correct task
-        task_args = _TASK_HANDLER.tasks.get(task_id, False)
-        if not task_args:  # check if the task is still active
-            self.msg("Task completed while waiting for input.")
-            return
-        else:
+        if task_args := _TASK_HANDLER.tasks.get(task_id, False):
             # make certain a task with matching IDs has not been created
             t_comp_date, t_func_mem_ref = self.coll_date_func(task_args)
             if self.t_comp_date != t_comp_date or self.t_func_mem_ref != t_func_mem_ref:
                 self.msg("Task completed while waiting for input.")
                 return
 
+        else:
+            self.msg("Task completed while waiting for input.")
+            return
         # Do the action requested by command caller
         action_return = self.task_action()
         self.msg(f"{self.action_request} request completed.")
@@ -1046,11 +1033,6 @@ class CmdTasks(COMMAND_DEFAULT_CLASS):
                 err_arg_msg = "Switch and task ID are required when manipulating a task."
                 task_comp_msg = "Task completed while processing request."
 
-                # handle missing arguments or switches
-                if not self.switches and self.lhs:
-                    self.msg(err_arg_msg)
-                    return
-
                 # create a handle for the task
                 task_id = arg_is_id
                 task = TaskHandlerTask(task_id)
@@ -1070,15 +1052,14 @@ class CmdTasks(COMMAND_DEFAULT_CLASS):
 
                 # verify manipulating the correct task
                 if task_id in _TASK_HANDLER.tasks:
-                    task_args = _TASK_HANDLER.tasks.get(task_id, False)
-                    if not task_args:  # check if the task is still active
-                        self.msg(task_comp_msg)
-                        return
-                    else:
+                    if task_args := _TASK_HANDLER.tasks.get(task_id, False):
                         t_comp_date, t_func_mem_ref = self.coll_date_func(task_args)
                         t_func_name = str(task_args[1]).split(" ")
                         t_func_name = t_func_name[1] if len(t_func_name) >= 2 else None
 
+                    else:
+                        self.msg(task_comp_msg)
+                        return
                 if task.exists():  # make certain the task has not been called yet.
                     prompt = (
                         f"{action_request.capitalize()} task {task_id} with completion date "
@@ -1104,18 +1085,12 @@ class CmdTasks(COMMAND_DEFAULT_CLASS):
                     self.msg(task_comp_msg)
                     return
 
-            # the argument is not a task id, process the action on all task deferring the function
-            # specified as an argument
             else:
 
                 name_match_found = False
                 arg_func_name = self.lhslist[0].lower()
 
-                # repack tasks into a new dictionary
-                current_tasks = {}
-                for task_id, task_args in _TASK_HANDLER.tasks.items():
-                    current_tasks.update({task_id: task_args})
-
+                current_tasks = dict(_TASK_HANDLER.tasks.items())
                 # call requested action on all tasks with the function name
                 for task_id, task_args in current_tasks.items():
                     t_func_name = str(task_args[1]).split(" ")
@@ -1125,8 +1100,7 @@ class CmdTasks(COMMAND_DEFAULT_CLASS):
                         continue
                     name_match_found = True
                     task = TaskHandlerTask(task_id)
-                    switch_action = getattr(task, action_request, False)
-                    if switch_action:
+                    if switch_action := getattr(task, action_request, False):
                         action_return = switch_action()
                         self.msg(f"Task action {action_request} completed on task ID {task_id}.")
                         self.msg(f"The task function {action_request} returned: {action_return}")
@@ -1137,7 +1111,6 @@ class CmdTasks(COMMAND_DEFAULT_CLASS):
                     return
                 return True
 
-        # check if an maleformed request was created
         elif self.switches or self.lhs:
             self.msg("Task command misformed.")
             self.msg("Proper format tasks[/switch] [function name or task id]")
@@ -1156,7 +1129,7 @@ class CmdTasks(COMMAND_DEFAULT_CLASS):
             "persistent",
         )
         # empty list of lists, the size of the header
-        tasks_list = [list() for i in range(len(tasks_header))]
+        tasks_list = [[] for _ in range(len(tasks_header))]
         for task_id, task in _TASK_HANDLER.tasks.items():
             # collect data from the task
             t_comp_date, t_func_mem_ref = self.coll_date_func(task)

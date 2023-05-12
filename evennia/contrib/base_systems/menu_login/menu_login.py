@@ -79,9 +79,8 @@ def node_enter_username(caller, raw_text, **kwargs):
             account, errors = _GUEST.authenticate(ip=address)
             if account:
                 return "node_quit_or_login", {"login": True, "account": account}
-            else:
-                session.msg("|R{}|n".format("\n".join(errors)))
-                return None  # re-run the username node
+            session.msg("|R{}|n".format("\n".join(errors)))
+            return None  # re-run the username node
 
         try:
             _ACCOUNT.objects.get(username__iexact=username)

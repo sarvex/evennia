@@ -231,27 +231,19 @@ def _progressive_cmd_run(cmd, generator, response=None):
         from evennia.utils.evmenu import get_input as _GET_INPUT
 
     try:
-        if response is None:
-            value = next(generator)
-        else:
-            value = generator.send(response)
+        value = next(generator) if response is None else generator.send(response)
     except StopIteration:
         # duplicated from cmdhandler._run_command, to have these
         # run in the right order while staying inside the deferred
         cmd.at_post_cmd()
-        if cmd.save_for_next:
-            # store a reference to this command, possibly
-            # accessible by the next command.
-            cmd.caller.ndb.last_cmd = copy(cmd)
-        else:
-            cmd.caller.ndb.last_cmd = None
+        cmd.caller.ndb.last_cmd = copy(cmd) if cmd.save_for_next else None
     else:
         if isinstance(value, (int, float)):
             utils.delay(value, _progressive_cmd_run, cmd, generator)
         elif isinstance(value, str):
             _GET_INPUT(cmd.caller, value, _process_input, cmd=cmd, generator=generator)
         else:
-            raise ValueError("unknown type for a yielded value in command: {}".format(type(value)))
+            raise ValueError(f"unknown type for a yielded value in command: {type(value)}")
 
 
 # custom Exceptions
@@ -434,7 +426,9 @@ def get_and_merge_cmdsets(caller, session, account, obj, callertype, raw_string)
                     ]
                 cmdsets += yield local_obj_cmdsets
         else:
-            raise Exception("get_and_merge_cmdsets: callertype %s is not valid." % callertype)
+            raise Exception(
+                f"get_and_merge_cmdsets: callertype {callertype} is not valid."
+            )
 
         # weed out all non-found sets
         cmdsets = yield [cmdset for cmdset in cmdsets if cmdset and cmdset.key != "_EMPTY_CMDSET"]
@@ -445,7 +439,7 @@ def get_and_merge_cmdsets(caller, session, account, obj, callertype, raw_string)
 
         if cmdsets:
             # faster to do tuple on list than to build tuple directly
-            mergehash = tuple([id(cmdset) for cmdset in cmdsets])
+            mergehash = tuple(id(cmdset) for cmdset in cmdsets)
             if mergehash in _CMDSET_MERGE_CACHE:
                 # cached merge exist; use that
                 cmdset = _CMDSET_MERGE_CACHE[mergehash]
@@ -636,13 +630,7 @@ def cmdhandler(
                 # post-command hook
                 yield cmd.at_post_cmd()
 
-                if cmd.save_for_next:
-                    # store a reference to this command, possibly
-                    # accessible by the next command.
-                    caller.ndb.last_cmd = yield copy(cmd)
-                else:
-                    caller.ndb.last_cmd = None
-
+                caller.ndb.last_cmd = (yield copy(cmd)) if cmd.save_for_next else None
             # return result to the deferred
             returnValue(ret)
 
@@ -667,7 +655,7 @@ def cmdhandler(
     elif callertype == "object":
         obj = called_by
     else:
-        raise RuntimeError("cmdhandler: callertype %s is not valid." % callertype)
+        raise RuntimeError(f"cmdhandler: callertype {callertype} is not valid.")
     # the caller will be the one to receive messages and excert its permissions.
     # we assign the caller with preference 'bottom up'
     caller = obj or account or session
@@ -682,11 +670,11 @@ def cmdhandler(
                 cmd = cmdobj() if callable(cmdobj) else cmdobj
                 cmdname = cmdobj_key if cmdobj_key else cmd.key
                 args = raw_string
-                unformatted_raw_string = "%s%s" % (cmdname, args)
+                unformatted_raw_string = f"{cmdname}{args}"
                 cmdset = None
                 raw_cmdname = cmdname
-                # session = session
-                # account = account
+                            # session = session
+                            # account = account
 
             else:
                 # no explicit cmdobject given, figure it out
@@ -770,7 +758,7 @@ def cmdhandler(
         except ErrorReported as exc:
             # this error was already reported, so we
             # catch it here and don't pass it on.
-            logger.log_err("User input was: '%s'." % exc.raw_string)
+            logger.log_err(f"User input was: '{exc.raw_string}'.")
 
         except ExecSystemCommand as exc:
             # Not a normal command: run a system command, if available,
@@ -789,7 +777,7 @@ def cmdhandler(
 
         except NoCmdSets:
             # Critical error.
-            logger.log_err("No cmdsets found: %s" % caller)
+            logger.log_err(f"No cmdsets found: {caller}")
             error_to.msg(_ERROR_NOCMDSETS)
 
         except Exception:

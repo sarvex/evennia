@@ -144,7 +144,7 @@ class CmdNick(COMMAND_DEFAULT_CLASS):
         Support escaping of = with \=
         """
         super().parse()
-        args = (self.lhs or "") + (" = %s" % self.rhs if self.rhs else "")
+        args = (self.lhs or "") + (f" = {self.rhs}" if self.rhs else "")
         parts = re.split(r"(?<!\\)=", args, 1)
         self.rhs = None
         if len(parts) < 2:
@@ -218,7 +218,7 @@ class CmdNick(COMMAND_DEFAULT_CLASS):
             if oldnicks:
                 for oldnick in oldnicks:
                     nicktype = oldnick.category
-                    nicktypestr = "%s-nick" % nicktype.capitalize()
+                    nicktypestr = f"{nicktype.capitalize()}-nick"
                     _, _, old_nickstring, old_replstring = oldnick.value
                     caller.nicks.remove(old_nickstring, category=nicktype)
                     caller.msg(
@@ -257,10 +257,7 @@ class CmdNick(COMMAND_DEFAULT_CLASS):
             if not specified_nicktype:
                 nicktypes = ("object", "account", "inputline")
             for nicktype in nicktypes:
-                if nicktype == "account":
-                    obj = account
-                else:
-                    obj = caller
+                obj = account if nicktype == "account" else caller
                 nicks = utils.make_iter(obj.nicks.get(category=nicktype, return_obj=True))
                 for nick in nicks:
                     _, _, nick, repl = nick.value
@@ -278,10 +275,7 @@ class CmdNick(COMMAND_DEFAULT_CLASS):
             if not specified_nicktype:
                 nicktypes = ("object", "account", "inputline")
             for nicktype in nicktypes:
-                if nicktype == "account":
-                    obj = account
-                else:
-                    obj = caller
+                obj = account if nicktype == "account" else caller
                 nicks = utils.make_iter(obj.nicks.get(category=nicktype, return_obj=True))
                 for nick in nicks:
                     _, _, nick, repl = nick.value
@@ -363,10 +357,7 @@ class CmdInventory(COMMAND_DEFAULT_CLASS):
 
     def func(self):
         """check inventory"""
-        items = self.caller.contents
-        if not items:
-            string = "You are not carrying anything."
-        else:
+        if items := self.caller.contents:
             from evennia.utils.ansi import raw as raw_ansi
 
             table = self.styled_table(border="header")
@@ -377,6 +368,8 @@ class CmdInventory(COMMAND_DEFAULT_CLASS):
                     "{}|n".format(utils.crop(raw_ansi(item.db.desc or ""), width=50) or ""),
                 )
             string = f"|wYou are carrying:\n{table}"
+        else:
+            string = "You are not carrying anything."
         self.caller.msg(text=(string, {"type": "inventory"}))
 
 
@@ -421,14 +414,13 @@ class CmdGet(COMMAND_DEFAULT_CLASS):
         if not obj.at_pre_get(caller):
             return
 
-        success = obj.move_to(caller, quiet=True, move_type="get")
-        if not success:
-            caller.msg("This can't be picked up.")
-        else:
+        if success := obj.move_to(caller, quiet=True, move_type="get"):
             singular, _ = obj.get_numbered_name(1, caller)
             caller.location.msg_contents(f"$You() $conj(pick) up {singular}.", from_obj=caller)
             # calling at_get hook method
             obj.at_get(caller)
+        else:
+            caller.msg("This can't be picked up.")
 
 
 class CmdDrop(COMMAND_DEFAULT_CLASS):
@@ -469,14 +461,13 @@ class CmdDrop(COMMAND_DEFAULT_CLASS):
         if not obj.at_pre_drop(caller):
             return
 
-        success = obj.move_to(caller.location, quiet=True, move_type="drop")
-        if not success:
-            caller.msg("This couldn't be dropped.")
-        else:
+        if success := obj.move_to(caller.location, quiet=True, move_type="drop"):
             singular, _ = obj.get_numbered_name(1, caller)
             caller.location.msg_contents(f"$You() $conj(drop) {singular}.", from_obj=caller)
             # Call the object script's at_drop() method.
             obj.at_drop(caller)
+        else:
+            caller.msg("This couldn't be dropped.")
 
 
 class CmdGive(COMMAND_DEFAULT_CLASS):
@@ -509,14 +500,14 @@ class CmdGive(COMMAND_DEFAULT_CLASS):
             multimatch_string=f"You carry more than one {self.lhs}:",
         )
         target = caller.search(self.rhs)
-        if not (to_give and target):
+        if not to_give or not target:
             return
 
         singular, _ = to_give.get_numbered_name(1, caller)
         if target == caller:
             caller.msg(f"You keep {singular} to yourself.")
             return
-        if not to_give.location == caller:
+        if to_give.location != caller:
             caller.msg(f"You are not holding {singular}.")
             return
 
@@ -524,15 +515,13 @@ class CmdGive(COMMAND_DEFAULT_CLASS):
         if not to_give.at_pre_give(caller, target):
             return
 
-        # give object
-        success = to_give.move_to(target, quiet=True, move_type="give")
-        if not success:
-            caller.msg(f"You could not give {singular} to {target.key}.")
-        else:
+        if success := to_give.move_to(target, quiet=True, move_type="give"):
             caller.msg(f"You give {singular} to {target.key}.")
             target.msg(f"{caller.key} gives you {singular}.")
             # Call the object script's at_give() method.
             to_give.at_give(caller, target)
+        else:
+            caller.msg(f"You could not give {singular} to {target.key}.")
 
 
 class CmdSetDesc(COMMAND_DEFAULT_CLASS):
@@ -590,15 +579,11 @@ class CmdSay(COMMAND_DEFAULT_CLASS):
 
         speech = self.args
 
-        # Calling the at_pre_say hook on the character
-        speech = caller.at_pre_say(speech)
-
-        # If speech is empty, stop here
-        if not speech:
+        if speech := caller.at_pre_say(speech):
+            # Call the at_post_say hook on the character
+            caller.at_say(speech, msg_self=True)
+        else:
             return
-
-        # Call the at_post_say hook on the character
-        caller.at_say(speech, msg_self=True)
 
 
 class CmdWhisper(COMMAND_DEFAULT_CLASS):
@@ -678,8 +663,8 @@ class CmdPose(COMMAND_DEFAULT_CLASS):
         space.
         """
         args = self.args
-        if args and not args[0] in ["'", ",", ":"]:
-            args = " %s" % args.strip()
+        if args and args[0] not in ["'", ",", ":"]:
+            args = f" {args.strip()}"
         self.args = args
 
     def func(self):

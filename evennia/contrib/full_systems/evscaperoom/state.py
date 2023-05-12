@@ -62,8 +62,7 @@ class StateHandler(object):
             self.room.msg_room(None, f"|rBUG: Falling back to {self.current_state_name}")
             return
 
-        state = mod.State(self, self.room)
-        return state
+        return mod.State(self, self.room)
 
     def init_state(self):
         """
@@ -87,9 +86,7 @@ class StateHandler(object):
             state_changed (bool): True if the state changed, False otherwise.
 
         """
-        # allows the state to enforce/customize what the next state should be
-        next_state_name = self.current_state.next(next_state)
-        if next_state_name:
+        if next_state_name := self.current_state.next(next_state):
             # we are ready to move on!
 
             next_state = self.load_state(next_state_name)
@@ -171,9 +168,7 @@ class BaseState(object):
 
         """
         val = _GA(self, key)
-        if callable(val):
-            return _GA(self, "_catch_errors")(val)
-        return val
+        return _GA(self, "_catch_errors")(val) if callable(val) else val
 
     def get_hint(self):
         """

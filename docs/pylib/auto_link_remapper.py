@@ -133,10 +133,10 @@ def auto_link_remapper(no_autodoc=False):
             targetname = targetpath.name.rsplit(".", 1)[0]
             targetpath = targetpath.as_posix()
             url = relpath(targetpath, dirname(sourcepath))
-            if not "/" in url:
+            if "/" not in url:
                 # need to be explicit or there will be link ref collisions between
                 # e.g. TickerHandler page and TickerHandle api node
-                url = "./" + url
+                url = f"./{url}"
             docref_map[sourcepath][targetname] = url.rsplit(".", 1)[0]
 
     # normal reference-links [txt](urls)
@@ -192,8 +192,8 @@ def auto_link_remapper(no_autodoc=False):
 
         if _CURRFILE in docref_map and fname in docref_map[_CURRFILE]:
             cfilename = _CURRFILE.rsplit("/", 1)[-1]
-            urlout = (
-                docref_map[_CURRFILE][fname] + ".md" + ("#" + anchor[0].lower() if anchor else "")
+            urlout = f"{docref_map[_CURRFILE][fname]}.md" + (
+                f"#{anchor[0].lower()}" if anchor else ""
             )
             if urlout != url:
                 print(f"  {cfilename}: [{txt}]({url}) -> [{txt}]({urlout})")
@@ -235,7 +235,7 @@ def auto_link_remapper(no_autodoc=False):
 
             if _CURRFILE in docref_map and fname in docref_map[_CURRFILE]:
                 cfilename = _CURRFILE.rsplit("/", 1)[-1]
-                urlout = docref_map[_CURRFILE][fname] + ("#" + anchor[0] if anchor else "")
+                urlout = docref_map[_CURRFILE][fname] + (f"#{anchor[0]}" if anchor else "")
                 if urlout != url:
                     print(f"  {cfilename}: [{txt}]: {url} -> [{txt}]: {urlout}")
             else:

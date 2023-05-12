@@ -49,20 +49,16 @@ manually later.
 
 
 def _green(string):
-    if USE_COLOR:
-        return "%s%s%s" % (ANSI_GREEN, string, ANSI_NORMAL)
-    return string
+    return f"{ANSI_GREEN}{string}{ANSI_NORMAL}" if USE_COLOR else string
 
 
 def _yellow(string):
-    if USE_COLOR:
-        return "%s%s%s" % (ANSI_YELLOW, string, ANSI_NORMAL)
-    return string
+    return f"{ANSI_YELLOW}{string}{ANSI_NORMAL}" if USE_COLOR else string
 
 
 def _red(string):
     if USE_COLOR:
-        return "%s%s%s" % (ANSI_HILITE + ANSI_RED, string, ANSI_NORMAL)
+        return f"{ANSI_HILITE + ANSI_RED}{string}{ANSI_NORMAL}"
     return string
 
 
@@ -138,14 +134,14 @@ def rename_in_tree(path, in_list, out_list, excl_list, fileend_list, is_interact
         print("\ndir: %s\n" % root)
 
         if any(fnmatch.fnmatch(root, excl) for excl in excl_list):
-            print("%s skipped (excluded)." % root)
+            print(f"{root} skipped (excluded).")
             continue
 
         for file in files:
 
             full_path = os.path.join(root, file)
             if any(fnmatch.fnmatch(full_path, excl) for excl in excl_list):
-                print("%s skipped (excluded)." % full_path)
+                print(f"{full_path} skipped (excluded).")
                 continue
 
             if not fileend_list or any(file.endswith(ending) for ending in fileend_list):
@@ -162,7 +158,7 @@ def rename_in_tree(path, in_list, out_list, excl_list, fileend_list, is_interact
                     try:
                         os.rename(full_path, new_full_path)
                     except OSError as err:
-                        input(_red("Could not rename - %s (return to skip)" % err))
+                        input(_red(f"Could not rename - {err} (return to skip)"))
                     else:
                         print("... Renamed.")
                 else:
@@ -177,7 +173,7 @@ def rename_in_tree(path, in_list, out_list, excl_list, fileend_list, is_interact
                 try:
                     os.rename(root, new_root)
                 except OSError as err:
-                    input(_red("Could not rename - %s (return to skip)" % err))
+                    input(_red(f"Could not rename - {err} (return to skip)"))
                 else:
                     print("... Renamed.")
             else:
@@ -194,12 +190,12 @@ def rename_in_file(path, in_list, out_list, is_interactive):
             replacements in each file.
 
     """
-    print("-- %s" % path)
+    print(f"-- {path}")
 
     org_text = ""
     new_text = None
     if os.path.isdir(path):
-        print("%s is a directory. You should use the --recursive option." % path)
+        print(f"{path} is a directory. You should use the --recursive option.")
         sys.exit()
 
     with open(path, "r") as fil:
@@ -214,11 +210,11 @@ def rename_in_file(path, in_list, out_list, is_interactive):
             new_text = _case_sensitive_replace(new_text, src, dst)
         if new_text != org_text:
             if FAKE_MODE:
-                print("   ... Saved changes to %s. (faked)" % path)
+                print(f"   ... Saved changes to {path}. (faked)")
             else:
                 with open(path, "w") as fil:
                     fil.write(new_text)
-                print("   ... Saved changes to %s." % path)
+                print(f"   ... Saved changes to {path}.")
     else:
         # interactive mode
         while True:
@@ -235,14 +231,14 @@ def rename_in_file(path, in_list, out_list, is_interactive):
 
             if not renamed:
                 # no changes
-                print("   ... no changes to %s." % path)
+                print(f"   ... no changes to {path}.")
                 return
 
             while True:
 
                 for iline, renamed_line in sorted(list(renamed.items()), key=lambda tup: tup[0]):
                     print("%3i orig: %s" % (iline + 1, org_lines[iline]))
-                    print("    new : %s" % (_yellow(renamed_line)))
+                    print(f"    new : {_yellow(renamed_line)}")
                 print(_green("%s (%i lines changed)" % (path, len(renamed))))
 
                 ret = input(
@@ -259,7 +255,7 @@ def rename_in_file(path, in_list, out_list, is_interactive):
 
                 if ret == "s":
                     # skip file entirely
-                    print("   ... Skipping file %s." % path)
+                    print(f"   ... Skipping file {path}.")
                     return
                 elif ret == "c":
                     # clear ignores - rerun rename
@@ -270,11 +266,11 @@ def rename_in_file(path, in_list, out_list, is_interactive):
                         org_lines[iline] = renamed_line
 
                     if FAKE_MODE:
-                        print("   ... Saved file %s (faked)" % path)
+                        print(f"   ... Saved file {path} (faked)")
                         return
                     with open(path, "w") as fil:
                         fil.writelines("\n".join(org_lines))
-                    print("   ... Saved file %s" % path)
+                    print(f"   ... Saved file {path}")
                     return
                 elif ret == "q":
                     print("Quit renaming program.")

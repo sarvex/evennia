@@ -82,7 +82,7 @@ class SetGender(Command):
             caller.msg("Usage: @gender male||female||neutral||ambiguous")
             return
         caller.db.gender = arg
-        caller.msg("Your gender was set to %s." % arg)
+        caller.msg(f"Your gender was set to {arg}.")
 
 
 # Gender-aware character class

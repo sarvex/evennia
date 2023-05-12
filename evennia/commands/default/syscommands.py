@@ -43,7 +43,6 @@ class SystemNoInput(COMMAND_DEFAULT_CLASS):
 
     def func(self):
         "Do nothing."
-        pass
 
 
 #

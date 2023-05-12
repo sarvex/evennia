@@ -205,8 +205,7 @@ class EvscaperoomObject(DefaultObject):
                 floor.
 
         """
-        pos = caller.attributes.get("position", category=self.tagcategory)
-        if pos:
+        if pos := caller.attributes.get("position", category=self.tagcategory):
             obj, old_position = pos
             return obj, old_position
         return None, None
@@ -277,7 +276,7 @@ class EvscaperoomObject(DefaultObject):
 
         """
         args = re.sub(
-            r"|".join(r"^{}\s".format(prep) for prep in self.action_prepositions), "", args
+            r"|".join(f"^{prep}\s" for prep in self.action_prepositions), "", args
         )
         return args
 
@@ -296,12 +295,11 @@ class EvscaperoomObject(DefaultObject):
                 inject the list of callsigns.
 
         """
-        command_signatures = []
         helpstr = ""
         methods = inspect.getmembers(self, predicate=inspect.ismethod)
-        for name, method in methods:
-            if name.startswith("at_focus_"):
-                command_signatures.append(name[9:])
+        command_signatures = [
+            name[9:] for name, method in methods if name.startswith("at_focus_")
+        ]
         command_signatures = sorted(command_signatures)
 
         if len(command_signatures) == 1:
@@ -317,9 +315,10 @@ class EvscaperoomObject(DefaultObject):
         Extract the first sentence from the desc and use as the short desc.
 
         """
-        mat = re.match(r"(^.*?[.?!])", full_desc.strip(), re.M + re.U + re.I + re.S)
-        if mat:
-            return mat.group(0).strip()
+        if mat := re.match(
+            r"(^.*?[.?!])", full_desc.strip(), re.M + re.U + re.I + re.S
+        ):
+            return mat[0].strip()
         return full_desc
 
     def get_help(self, caller):
@@ -331,7 +330,9 @@ class EvscaperoomObject(DefaultObject):
         # custom-created signatures. We don't sort these
         command_signatures, helpstr = self.get_cmd_signatures()
 
-        callsigns = list_to_string(["*" + sig for sig in command_signatures], endsep="or")
+        callsigns = list_to_string(
+            [f"*{sig}" for sig in command_signatures], endsep="or"
+        )
 
         # parse for *thing markers (use these as items)
         options = caller.attributes.get("options", category=self.room.tagcategory, default={})
@@ -428,7 +429,7 @@ class Rotatable(EvscaperoomObject):
         self.msg_char(caller, f"You turn *{self.key} around.")
 
     def at_cannot_rotate(self, caller):
-        self.msg_char(caller, f"You cannot rotate this.")
+        self.msg_char(caller, "You cannot rotate this.")
 
 
 class Openable(EvscaperoomObject):
@@ -539,10 +540,7 @@ class IndexReadable(Readable):
             self.at_read(caller, topic, entry)
 
     def get_cmd_signatures(self):
-        txt = (
-            f"You don't have the time to read this from beginning to end. "
-            "Use *read <topic> to look up something in particular."
-        )
+        txt = "You don't have the time to read this from beginning to end. Use *read <topic> to look up something in particular."
         return [], txt
 
     def at_cannot_read(self, caller, topic, *args, **kwargs):
@@ -577,9 +575,7 @@ class Movable(EvscaperoomObject):
 
     def at_focus_move(self, caller, **kwargs):
         pos = self.parse(kwargs["args"])
-        callfunc_name = self.move_positions.get(pos)
-
-        if callfunc_name:
+        if callfunc_name := self.move_positions.get(pos):
             if self.db.position == pos:
                 self.at_already_moved(caller, pos)
             else:
@@ -678,7 +674,7 @@ class Drinkable(BaseConsumable):
         self.msg_char(caller, f"You {action} from *{self.key}.")
 
     def at_already_consumed(self, caller, action):
-        self.msg_char(caller, f"You can't drink any more.")
+        self.msg_char(caller, "You can't drink any more.")
 
 
 class BaseApplicable(EvscaperoomObject):
@@ -868,10 +864,10 @@ class Mixable(EvscaperoomObject):
         self.msg_room(caller, f"~You ~mix {ingredient.key} into *{self.key}.")
 
     def at_mix_failure(self, caller, ingredient, **kwargs):
-        self.msg_room(caller, f"This mix doesn't work. ~You ~clean and start over.")
+        self.msg_room(caller, "This mix doesn't work. ~You ~clean and start over.")
 
     def at_mix_success(self, caller, ingredient, **kwargs):
-        self.msg_room(caller, f"~You successfully ~complete the mix!")
+        self.msg_room(caller, "~You successfully ~complete the mix!")
 
 
 class HasButtons(EvscaperoomObject):
@@ -898,8 +894,7 @@ class HasButtons(EvscaperoomObject):
 
     def at_focus_press(self, caller, **kwargs):
         arg = self.parse(kwargs["args"])
-        callfunc_name = self.buttons.get(arg)
-        if callfunc_name:
+        if callfunc_name := self.buttons.get(arg):
             getattr(self, callfunc_name)(caller)
         else:
             self.at_nomatch(caller)
@@ -999,18 +994,13 @@ class BasePositionable(EvscaperoomObject):
 
         """
         old_obj, old_pos = self.get_position(caller)
-        if old_obj:
-            if old_obj is self:
-                if old_pos == new_pos:
-                    self.at_again_position(caller, new_pos)
-                else:
-                    self.set_position(caller, new_pos)
-                    self.at_position(caller, new_pos)
-            else:
-                self.at_cannot_position(caller, new_pos, old_obj, old_pos)
-        else:
+        if old_obj and old_obj is self and old_pos == new_pos:
+            self.at_again_position(caller, new_pos)
+        elif old_obj and old_obj is self or not old_obj:
             self.set_position(caller, new_pos)
             self.at_position(caller, new_pos)
+        else:
+            self.at_cannot_position(caller, new_pos, old_obj, old_pos)
 
     def at_cannot_position(self, caller, position, old_obj, old_pos):
         self.msg_char(

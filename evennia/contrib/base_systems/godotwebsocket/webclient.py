@@ -41,14 +41,13 @@ class GodotWebSocketClient(webclient.WebSocketClient):
                 - send_prompt (bool): Send a prompt with parsed bbcode
 
         """
-        if args:
-            args = list(args)
-            text = args[0]
-            if text is None:
-                return
-        else:
+        if not args:
             return
 
+        args = list(args)
+        text = args[0]
+        if text is None:
+            return
         flags = self.protocol_flags
 
         options = kwargs.pop("options", {})
@@ -63,6 +62,7 @@ class GodotWebSocketClient(webclient.WebSocketClient):
 
 
 def start_plugin_services(portal):
+
     class GodotWebsocket(WebSocketServerFactory):
         "Only here for better naming in logs"
         pass
@@ -76,5 +76,5 @@ def start_plugin_services(portal):
 
     port = settings.GODOT_CLIENT_WEBSOCKET_PORT
     websocket_service = internet.TCPServer(port, factory, interface=interface)
-    websocket_service.setName("GodotWebSocket%s:%s" % (interface, port))
+    websocket_service.setName(f"GodotWebSocket{interface}:{port}")
     portal.services.addService(websocket_service)

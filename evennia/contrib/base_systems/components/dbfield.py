@@ -87,11 +87,10 @@ class TagField:
         Called when retrieving the value of the TagField.
         It is called with the component instance and the class.
         """
-        tag_value = instance.host.tags.get(
+        return instance.host.tags.get(
             default=self._default,
             category=self._category_key,
         )
-        return tag_value
 
     def __set__(self, instance, value):
         """

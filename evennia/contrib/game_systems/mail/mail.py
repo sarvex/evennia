@@ -109,12 +109,12 @@ class CmdMail(default_cmds.MuxAccountCommand):
             targetlist (Queryset): Any target matches.
 
         """
-        nameregex = r"|".join(r"^%s$" % re.escape(name) for name in make_iter(namelist))
-        if self.caller_is_account:
-            matches = AccountDB.objects.filter(username__iregex=nameregex)
-        else:
-            matches = ObjectDB.objects.filter(db_key__iregex=nameregex)
-        return matches
+        nameregex = r"|".join(f"^{re.escape(name)}$" for name in make_iter(namelist))
+        return (
+            AccountDB.objects.filter(username__iregex=nameregex)
+            if self.caller_is_account
+            else ObjectDB.objects.filter(db_key__iregex=nameregex)
+        )
 
     def get_all_mail(self):
         """
@@ -144,7 +144,7 @@ class CmdMail(default_cmds.MuxAccountCommand):
 
         """
         for recipient in recipients:
-            recipient.msg("You have received a new @mail from %s" % caller)
+            recipient.msg(f"You have received a new @mail from {caller}")
             new_message = create.create_message(
                 self.caller, message, receivers=recipient, header=subject
             )
@@ -152,10 +152,10 @@ class CmdMail(default_cmds.MuxAccountCommand):
 
         if recipients:
             caller.msg("You sent your message.")
-            return
         else:
             caller.msg("No valid target(s) found. Cannot send message.")
-            return
+
+        return
 
     def func(self):
         """

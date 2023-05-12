@@ -159,7 +159,7 @@ class CmdHelp(COMMAND_DEFAULT_CLASS):
         title = f"|CHelp for |w{topic}|n" if topic else "|rNo help found|n"
 
         if aliases:
-            aliases = " |C(aliases: {}|C)|n".format("|C,|n ".join(f"|w{ali}|n" for ali in aliases))
+            aliases = f' |C(aliases: {"|C,|n ".join(f"|w{ali}|n" for ali in aliases)}|C)|n'
         else:
             aliases = ""
 
@@ -588,7 +588,7 @@ class CmdHelp(COMMAND_DEFAULT_CLASS):
 
         # get all categories
         all_categories = list(
-            set(HelpCategory(topic.help_category) for topic in all_topics.values())
+            {HelpCategory(topic.help_category) for topic in all_topics.values()}
         )
 
         # all available help options - will be searched in order. We also check # the
@@ -664,14 +664,12 @@ class CmdHelp(COMMAND_DEFAULT_CLASS):
             topic = match.key
             help_text = match.get_help(caller, cmdset)
             aliases = match.aliases
-            suggested = suggestions[1:]
         else:
             # a database (or file-help) match
             topic = match.key
             help_text = match.entrytext
             aliases = match.aliases if isinstance(match.aliases, list) else match.aliases.all()
-            suggested = suggestions[1:]
-
+        suggested = suggestions[1:]
         # parse for subtopics. The subtopic_map is a dict with the current topic/subtopic
         # text is stored under a `None` key and all other keys are subtopic titles pointing
         # to nested dicts.
@@ -705,7 +703,7 @@ class CmdHelp(COMMAND_DEFAULT_CLASS):
 
                     if not fuzzy_match:
                         # no match found - give up
-                        checked_topic = topic + f"/{subtopic_query}"
+                        checked_topic = f"{topic}/{subtopic_query}"
                         output = self.format_help_entry(
                             topic=topic,
                             help_text=f"No help entry found for '{checked_topic}'",
@@ -720,7 +718,7 @@ class CmdHelp(COMMAND_DEFAULT_CLASS):
                 subtopic_map = subtopic_map.pop(subtopic_query)
                 subtopic_index = [subtopic for subtopic in subtopic_map if subtopic is not None]
                 # keep stepping down into the tree, append path to show position
-                topic = topic + f"/{subtopic_query}"
+                topic = f"{topic}/{subtopic_query}"
 
             # we reached the bottom of the topic tree
             help_text = subtopic_map[None]
@@ -745,11 +743,7 @@ class CmdHelp(COMMAND_DEFAULT_CLASS):
 
 
 def _loadhelp(caller):
-    entry = caller.db._editing_help
-    if entry:
-        return entry.entrytext
-    else:
-        return ""
+    return entry.entrytext if (entry := caller.db._editing_help) else ""
 
 
 def _savehelp(caller, buffer):
@@ -860,7 +854,7 @@ class CmdSetHelp(CmdHelp):
             topicstrlist[0],
             topicstrlist[1:] if len(topicstr) > 1 else [],
         )
-        aliastxt = ("(aliases: %s)" % ", ".join(aliases)) if aliases else ""
+        aliastxt = f'(aliases: {", ".join(aliases)})' if aliases else ""
         old_entry = None
 
         # check if we have an old entry with the same name
@@ -874,7 +868,7 @@ class CmdSetHelp(CmdHelp):
         all_topics = {**file_db_help_topics, **cmd_help_topics}
         # get all categories
         all_categories = list(
-            set(HelpCategory(topic.help_category) for topic in all_topics.values())
+            {HelpCategory(topic.help_category) for topic in all_topics.values()}
         )
         # all available help options - will be searched in order. We also check # the
         # read-permission here.
@@ -954,7 +948,7 @@ class CmdSetHelp(CmdHelp):
                 loadfunc=_loadhelp,
                 savefunc=_savehelp,
                 quitfunc=_quithelp,
-                key="topic {}".format(topicstr),
+                key=f"topic {topicstr}",
                 persistent=True,
             )
             return
@@ -968,7 +962,7 @@ class CmdSetHelp(CmdHelp):
                 self.msg("You must supply text to append/merge.")
                 return
             if "merge" in switches:
-                old_entry.entrytext += " " + self.rhs
+                old_entry.entrytext += f" {self.rhs}"
             else:
                 old_entry.entrytext += "\n%s" % self.rhs
             old_entry.aliases.add(aliases)
@@ -1004,24 +998,13 @@ class CmdSetHelp(CmdHelp):
                     f"Topic '{topicstr}'{aliastxt} already exists. Use /edit to open in editor, or "
                     "/replace, /append and /merge to modify it directly."
                 )
+        elif new_entry := create.create_help_entry(
+            topicstr,
+            self.rhs,
+            category=category,
+            locks=lockstring,
+            aliases=aliases,
+        ):
+            self.msg(f"Topic '{topicstr}'{aliastxt} was successfully created.")
         else:
-            # no old entry. Create a new one.
-            new_entry = create.create_help_entry(
-                topicstr, self.rhs, category=category, locks=lockstring, aliases=aliases
-            )
-            if new_entry:
-                self.msg(f"Topic '{topicstr}'{aliastxt} was successfully created.")
-                if "edit" in switches:
-                    # open the line editor to edit the helptext
-                    self.caller.db._editing_help = new_entry
-                    EvEditor(
-                        self.caller,
-                        loadfunc=_loadhelp,
-                        savefunc=_savehelp,
-                        quitfunc=_quithelp,
-                        key="topic {}".format(new_entry.key),
-                        persistent=True,
-                    )
-                    return
-            else:
-                self.msg(f"Error when creating topic '{topicstr}'{aliastxt}! Contact an admin.")
+            self.msg(f"Error when creating topic '{topicstr}'{aliastxt}! Contact an admin.")

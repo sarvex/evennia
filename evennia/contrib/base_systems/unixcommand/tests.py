@@ -26,9 +26,9 @@ class CmdDummy(UnixCommand):
         result = nb1 * nb2
         verbose = self.opts.verbose
         if verbose:
-            self.msg("{} times {} is {}".format(nb1, nb2, result))
+            self.msg(f"{nb1} times {nb2} is {result}")
         else:
-            self.msg("{} * {} = {}".format(nb1, nb2, result))
+            self.msg(f"{nb1} * {nb2} = {result}")
 
 
 class TestUnixCommand(BaseEvenniaCommandTest):

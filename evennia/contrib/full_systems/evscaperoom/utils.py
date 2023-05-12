@@ -62,8 +62,7 @@ def create_evscaperoom_object(
         else:
             [obj.delete() for obj in old_objs]
 
-    new_obj = create_object(typeclass=typeclass, key=key, location=location, **kwargs)
-    return new_obj
+    return create_object(typeclass=typeclass, key=key, location=location, **kwargs)
 
 
 def create_fantasy_word(length=5, capitalize=True):
@@ -132,9 +131,9 @@ def parse_for_perspectives(string, you=None):
                 return irregulars[lmatch].capitalize()
             return irregulars[lmatch]
         elif lmatch[-1] == "s":
-            return match + "es"
+            return f"{match}es"
         else:
-            return match + "s"  # simple, most normal form
+            return f"{match}s"
 
     you = "They" if you is None else you
 
@@ -163,10 +162,10 @@ def parse_for_things(string, things_style=2, clr="|y"):
         return _RE_THING.sub(r"\1", string)
     elif things_style == 1:
         # only colors
-        return _RE_THING.sub(r"{}\1|n".format(clr), string)
+        return _RE_THING.sub(f"{clr}\1|n", string)
     else:
         # colors and brackets
-        return _RE_THING.sub(r"{}[\1]|n".format(clr), string)
+        return _RE_THING.sub(f"{clr}[\1]|n", string)
 
 
 def add_msg_borders(text):

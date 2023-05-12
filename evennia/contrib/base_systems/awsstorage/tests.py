@@ -551,7 +551,7 @@ class S3Boto3StorageTests(S3Boto3TestCase):
 
     def test_storage_url(self):
         name = "test_storage_size.txt"
-        url = "http://aws.amazon.com/%s" % name
+        url = f"http://aws.amazon.com/{name}"
         self.storage.bucket.meta.client.generate_presigned_url.return_value = url
         self.storage.bucket.name = "bucket"
         self.assertEqual(self.storage.url(name), url)
@@ -594,13 +594,13 @@ class S3Boto3StorageTests(S3Boto3TestCase):
         expected = "http://bucket.s3-aws-region.amazonaws.com/foo/bar"
         self.assertEqual(
             self.storage._strip_signing_parameters(
-                "%s?X-Amz-Date=12345678&X-Amz-Signature=Signature" % expected
+                f"{expected}?X-Amz-Date=12345678&X-Amz-Signature=Signature"
             ),
             expected,
         )
         self.assertEqual(
             self.storage._strip_signing_parameters(
-                "%s?expires=12345678&signature=Signature" % expected
+                f"{expected}?expires=12345678&signature=Signature"
             ),
             expected,
         )

@@ -90,7 +90,7 @@ def to_object(inp, objtype="account"):
             return _AccountDB.objects.get(user_username__iexact=obj)
         if typ == "dbref":
             return _AccountDB.objects.get(id=obj)
-        logger.log_err("%s %s %s %s %s" % (objtype, inp, obj, typ, type(inp)))
+        logger.log_err(f"{objtype} {inp} {obj} {typ} {type(inp)}")
         raise CommError()
     elif objtype == "object":
         if typ == "account":
@@ -99,21 +99,21 @@ def to_object(inp, objtype="account"):
             return _ObjectDB.objects.get(db_key__iexact=obj)
         if typ == "dbref":
             return _ObjectDB.objects.get(id=obj)
-        logger.log_err("%s %s %s %s %s" % (objtype, inp, obj, typ, type(inp)))
+        logger.log_err(f"{objtype} {inp} {obj} {typ} {type(inp)}")
         raise CommError()
     elif objtype == "channel":
         if typ == "string":
             return _ChannelDB.objects.get(db_key__iexact=obj)
         if typ == "dbref":
             return _ChannelDB.objects.get(id=obj)
-        logger.log_err("%s %s %s %s %s" % (objtype, inp, obj, typ, type(inp)))
+        logger.log_err(f"{objtype} {inp} {obj} {typ} {type(inp)}")
         raise CommError()
     elif objtype == "script":
         if typ == "string":
             return _ScriptDB.objects.get(db_key__iexact=obj)
         if typ == "dbref":
             return _ScriptDB.objects.get(id=obj)
-        logger.log_err("%s %s %s %s %s" % (objtype, inp, obj, typ, type(inp)))
+        logger.log_err(f"{objtype} {inp} {obj} {typ} {type(inp)}")
         raise CommError()
 
     # an unknown
@@ -390,8 +390,7 @@ class ChannelDBManager(TypedObjectManager):
             channel (Channel or None): A channel match.
 
         """
-        dbref = self.dbref(channelkey)
-        if dbref:
+        if dbref := self.dbref(channelkey):
             try:
                 return self.get(id=dbref)
             except self.model.DoesNotExist:
@@ -433,23 +432,27 @@ class ChannelDBManager(TypedObjectManager):
             Queryset: Iterable with 0, 1 or more matches.
 
         """
-        dbref = self.dbref(ostring)
-        if dbref:
-            dbref_match = self.search_dbref(dbref)
-            if dbref_match:
+        if dbref := self.dbref(ostring):
+            if dbref_match := self.search_dbref(dbref):
                 return dbref_match
 
-        if exact:
-            channels = self.filter(
+        return (
+            self.filter(
                 Q(db_key__iexact=ostring)
-                | Q(db_tags__db_tagtype__iexact="alias", db_tags__db_key__iexact=ostring)
+                | Q(
+                    db_tags__db_tagtype__iexact="alias",
+                    db_tags__db_key__iexact=ostring,
+                )
             ).distinct()
-        else:
-            channels = self.filter(
+            if exact
+            else self.filter(
                 Q(db_key__icontains=ostring)
-                | Q(db_tags__db_tagtype__iexact="alias", db_tags__db_key__icontains=ostring)
+                | Q(
+                    db_tags__db_tagtype__iexact="alias",
+                    db_tags__db_key__icontains=ostring,
+                )
             ).distinct()
-        return channels
+        )
 
     def create_channel(
         self,

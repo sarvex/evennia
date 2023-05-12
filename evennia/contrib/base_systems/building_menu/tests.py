@@ -41,9 +41,7 @@ class TestBuildingMenu(BaseEvenniaCommandTest):
 
     def test_add_choice_without_key(self):
         """Try to add choices without keys."""
-        choices = []
-        for i in range(20):
-            choices.append(self.menu.add_choice("choice", attr="test"))
+        choices = [self.menu.add_choice("choice", attr="test") for _ in range(20)]
         self.menu._add_keys_choice()
         keys = [
             "c",

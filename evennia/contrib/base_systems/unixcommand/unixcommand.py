@@ -292,7 +292,6 @@ class UnixCommand(Command):
         try:
             self.opts = self.parser.parse_args(shlex.split(self.args))
         except ParseError as err:
-            msg = str(err)
-            if msg:
+            if msg := str(err):
                 self.msg(msg)
             raise InterruptCommand

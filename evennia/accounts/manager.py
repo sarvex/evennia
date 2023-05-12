@@ -164,9 +164,7 @@ class AccountDBManager(TypedObjectManager, UserManager):
         """
         dbref = self.dbref(ostring)
         if dbref or dbref == 0:
-            # dbref search is always exact
-            dbref_match = self.search_dbref(dbref)
-            if dbref_match:
+            if dbref_match := self.search_dbref(dbref):
                 return dbref_match
 
         query = {"username__iexact" if exact else "username__icontains": ostring}
@@ -177,10 +175,7 @@ class AccountDBManager(TypedObjectManager, UserManager):
             else:
                 typeclass = str(typeclass)
             query["db_typeclass_path"] = typeclass
-        if exact:
-            matches = self.filter(**query)
-        else:
-            matches = self.filter(**query)
+        matches = self.filter(**query)
         if not matches:
             # try alias match
             matches = self.filter(
@@ -252,7 +247,7 @@ class AccountDBManager(TypedObjectManager, UserManager):
         if not email:
             email = None
         if self.model.objects.filter(username__iexact=key):
-            raise ValueError("An Account with the name '%s' already exists." % key)
+            raise ValueError(f"An Account with the name '{key}' already exists.")
 
         # this handles a given dbref-relocate to an account.
         report_to = dbid_to_obj(report_to, self.model)

@@ -158,17 +158,15 @@ class CmdEvscapeRoom(Command):
 
         matches = self.caller.search(query, quiet=True)
 
-        if not matches or len(matches) > 1:
-            if required:
-                if not query:
-                    self.caller.msg("You must give an argument.")
-                else:
-                    _AT_SEARCH_RESULT(matches, self.caller, query=query)
-                raise InterruptCommand
-            else:
-                return None, query
-        else:
+        if matches and len(matches) <= 1:
             return matches[0], None
+        if not required:
+            return None, query
+        if not query:
+            self.caller.msg("You must give an argument.")
+        else:
+            _AT_SEARCH_RESULT(matches, self.caller, query=query)
+        raise InterruptCommand
 
     def parse(self):
         """
@@ -179,7 +177,7 @@ class CmdEvscapeRoom(Command):
         self.args = self.args.strip()
 
         # splits to either ['obj'] or e.g. ['obj', 'on', 'obj']
-        parts = [part.strip() for part in _RE_ARGSPLIT.split(" " + self.args, 1)]
+        parts = [part.strip() for part in _RE_ARGSPLIT.split(f" {self.args}", 1)]
         nparts = len(parts)
         self.obj1 = None
         self.arg1 = None
@@ -229,11 +227,9 @@ class CmdGiveUp(CmdEvscapeRoom):
         nchars = len(self.room.get_all_characters())
         if nchars == 1:
             warning = _QUIT_WARNING_LAST_CHAR.format(roomname=self.room.name)
-            warning = _QUIT_WARNING.format(warning=warning)
         else:
             warning = _QUIT_WARNING_CAN_COME_BACK.format(roomname=self.room.name)
-            warning = _QUIT_WARNING.format(warning=warning)
-
+        warning = _QUIT_WARNING.format(warning=warning)
         ret = yield (warning)
         if ret.upper() == "QUIT":
             self.msg("|R ... Oh. Okay then. Off you go.|n\n")
@@ -303,8 +299,7 @@ class CmdWho(CmdEvscapeRoom, default_cmds.CmdWho):
             table = self.style_table("|wName", "|wRoom")
             sessions = SESSION_HANDLER.get_sessions()
             for session in sessions:
-                puppet = session.get_puppet()
-                if puppet:
+                if puppet := session.get_puppet():
                     location = puppet.location
                     locname = location.key if location else "(Outside somewhere)"
                     table.add_row(puppet, locname)
@@ -361,9 +356,9 @@ class CmdSpeak(Command):
         else:
             args = f"|c{args}|n"
 
-        message = f"~You ~{action}: {args}"
-
         if hasattr(room, "msg_room"):
+            message = f"~You ~{action}: {args}"
+
             room.msg_room(caller, message)
             room.log(f"{action} by {caller.key}: {args}")
 
@@ -389,11 +384,11 @@ class CmdEmote(Command):
     aliases = [":", "pose"]
     arg_regex = r"\w|\s|$"
 
-    def you_replace(match):
-        return match
+    def you_replace(self):
+        return self
 
-    def room_replace(match):
-        return match
+    def room_replace(self):
+        return self
 
     def func(self):
         emote = self.args.strip()
@@ -605,10 +600,9 @@ class CmdStand(CmdEvscapeRoom):
 
     def func(self):
 
-        # Positionable objects will set this flag on you.
-        pos = self.caller.attributes.get("position", category=self.room.tagcategory)
-
-        if pos:
+        if pos := self.caller.attributes.get(
+            "position", category=self.room.tagcategory
+        ):
             # we have a position, clean up.
             obj, position = pos
             self.caller.attributes.remove("position", category=self.room.tagcategory)
@@ -685,7 +679,7 @@ class CmdCreateObj(CmdEvscapeRoom):
 
         if typeclass.startswith("state_"):
             # a state class
-            typeclass = "evscaperoom.states." + typeclass
+            typeclass = f"evscaperoom.states.{typeclass}"
         else:
             name = args.strip()
 

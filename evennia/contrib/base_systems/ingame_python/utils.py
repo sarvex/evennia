@@ -54,7 +54,7 @@ def register_events(path_or_typeclass):
     else:
         typeclass = path_or_typeclass
 
-    typeclass_name = typeclass.__module__ + "." + typeclass.__name__
+    typeclass_name = f"{typeclass.__module__}.{typeclass.__name__}"
     try:
         storage = ScriptDB.objects.get(db_key="event_handler")
         assert storage.ndb.events is not None
@@ -137,18 +137,15 @@ def get_next_wait(format):
 
         if not piece.isdigit():
             logger.log_trace(
-                "The time specified '{}' in {} isn't " "a valid number".format(piece, format)
+                f"The time specified '{piece}' in {format} isn't a valid number"
             )
             return
 
         # Convert the piece to int
         piece = int(piece)
         params[uname] = piece
-        details.append("{}={}".format(uname, piece))
-        if i < len(units):
-            next_unit = units[i + 1]
-        else:
-            next_unit = None
+        details.append(f"{uname}={piece}")
+        next_unit = units[i + 1] if i < len(units) else None
         i += 1
 
     params["sec"] = 0
@@ -179,7 +176,7 @@ def time_event(obj, event_name, number, parameters):
         obj=obj,
     )
     script.key = key
-    script.desc = "event on {}".format(key)
+    script.desc = f"event on {key}"
     script.db.time_format = parameters
     script.db.number = number
     script.ndb.usual = usual

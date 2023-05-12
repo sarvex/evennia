@@ -80,8 +80,7 @@ def call_event(obj, event_name, seconds=0):
         to be called from inside another event.
 
     """
-    script = type(obj.callbacks).script
-    if script:
+    if script := type(obj.callbacks).script:
         # If seconds is 0, call the event immediately
         if seconds == 0:
             locals = dict(script.ndb.current_locals)

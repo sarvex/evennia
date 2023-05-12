@@ -157,20 +157,14 @@ class SignalsHandler(object):
 
         if not callbacks:
             default = [] if default is None else default
-            if aggregate_func:
-                return aggregate_func(default)
-            return default
-
+            return aggregate_func(default) if aggregate_func else default
         responses = []
         for callback in callbacks:
             response = callback(*args, **kwargs)
             if response is not None:
                 responses.append(response)
 
-        if aggregate_func and responses:
-            return aggregate_func(responses)
-
-        return responses
+        return aggregate_func(responses) if aggregate_func and responses else responses
 
     def add_object_listeners_and_responders(self, obj):
         """
@@ -181,13 +175,15 @@ class SignalsHandler(object):
         """
         type_host = type(obj)
         for att_name, att_obj in type_host.__dict__.items():
-            listener_signal_name = getattr(att_obj, "_listener_signal_name", None)
-            if listener_signal_name:
+            if listener_signal_name := getattr(
+                att_obj, "_listener_signal_name", None
+            ):
                 callback = getattr(obj, att_name)
                 self.add_listener(signal_name=listener_signal_name, callback=callback)
 
-            responder_signal_name = getattr(att_obj, "_responder_signal_name", None)
-            if responder_signal_name:
+            if responder_signal_name := getattr(
+                att_obj, "_responder_signal_name", None
+            ):
                 callback = getattr(obj, att_name)
                 self.add_responder(signal_name=responder_signal_name, callback=callback)
 
@@ -200,12 +196,14 @@ class SignalsHandler(object):
         """
         type_host = type(obj)
         for att_name, att_obj in type_host.__dict__.items():
-            listener_signal_name = getattr(att_obj, "_listener_signal_name", None)
-            if listener_signal_name:
+            if listener_signal_name := getattr(
+                att_obj, "_listener_signal_name", None
+            ):
                 callback = getattr(obj, att_name)
                 self.remove_listener(signal_name=listener_signal_name, callback=callback)
 
-            responder_signal_name = getattr(att_obj, "_responder_signal_name", None)
-            if responder_signal_name:
+            if responder_signal_name := getattr(
+                att_obj, "_responder_signal_name", None
+            ):
                 callback = getattr(obj, att_name)
                 self.remove_responder(signal_name=responder_signal_name, callback=callback)

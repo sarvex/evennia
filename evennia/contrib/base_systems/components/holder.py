@@ -29,8 +29,7 @@ class ComponentProperty:
         self.values = kwargs
 
     def __get__(self, instance, owner):
-        component = instance.components.get(self.component_name)
-        return component
+        return instance.components.get(self.component_name)
 
     def __set__(self, instance, value):
         raise Exception("Cannot set a class property")
@@ -106,8 +105,7 @@ class ComponentHandler:
         """
         self.host.tags.add(component.name, category="components")
         for tag_field_name in component.tag_field_names:
-            default_tag = type(component).__dict__[tag_field_name]._default
-            if default_tag:
+            if default_tag := type(component).__dict__[tag_field_name]._default:
                 setattr(component, tag_field_name, default_tag)
 
     def remove(self, component):
@@ -199,8 +197,7 @@ class ComponentHandler:
             return
 
         for component_name in component_names:
-            component = components.get_component_class(component_name)
-            if component:
+            if component := components.get_component_class(component_name):
                 component_instance = component.load(self.host)
                 self._set_component(component_instance)
                 self.host.signals.add_object_listeners_and_responders(component_instance)

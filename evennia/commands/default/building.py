@@ -213,14 +213,15 @@ class CmdSetObjAlias(COMMAND_DEFAULT_CLASS):
             aliases = obj.aliases.all(return_key_and_category=True)
             if aliases:
                 caller.msg(
-                    "Aliases for %s: %s"
-                    % (
-                        obj.get_display_name(caller),
-                        ", ".join(
-                            "'%s'%s"
-                            % (alias, "" if category is None else "[category:'%s']" % category)
-                            for (alias, category) in aliases
-                        ),
+                    (
+                        "Aliases for %s: %s"
+                        % (
+                            obj.get_display_name(caller),
+                            ", ".join(
+                                f"""'{alias}'{"" if category is None else f"[category:'{category}']"}"""
+                                for (alias, category) in aliases
+                            ),
+                        )
                     )
                 )
             else:
@@ -236,8 +237,7 @@ class CmdSetObjAlias(COMMAND_DEFAULT_CLASS):
             old_aliases = obj.aliases.all()
             if old_aliases:
                 caller.msg(
-                    "Cleared aliases from %s: %s"
-                    % (obj.get_display_name(caller), ", ".join(old_aliases))
+                    f'Cleared aliases from {obj.get_display_name(caller)}: {", ".join(old_aliases)}'
                 )
                 obj.aliases.clear()
             else:
@@ -275,12 +275,7 @@ class CmdSetObjAlias(COMMAND_DEFAULT_CLASS):
 
         # report all aliases on the object
         caller.msg(
-            "Alias(es) for '%s' set to '%s'%s."
-            % (
-                obj.get_display_name(caller),
-                str(obj.aliases),
-                " (category: '%s')" % category if category else "",
-            )
+            f"""Alias(es) for '{obj.get_display_name(caller)}' set to '{str(obj.aliases)}'{f" (category: '{category}')" if category else ""}."""
         )
 
 
@@ -318,16 +313,12 @@ class CmdCopy(ObjManipCommand):
             from_obj = caller.search(from_obj_name)
             if not from_obj:
                 return
-            to_obj_name = "%s_copy" % from_obj_name
-            to_obj_aliases = ["%s_copy" % alias for alias in from_obj.aliases.all()]
-            copiedobj = ObjectDB.objects.copy_object(
+            to_obj_name = f"{from_obj_name}_copy"
+            to_obj_aliases = [f"{alias}_copy" for alias in from_obj.aliases.all()]
+            if copiedobj := ObjectDB.objects.copy_object(
                 from_obj, new_key=to_obj_name, new_aliases=to_obj_aliases
-            )
-            if copiedobj:
-                string = "Identical copy of %s, named '%s' was created." % (
-                    from_obj_name,
-                    to_obj_name,
-                )
+            ):
+                string = f"Identical copy of {from_obj_name}, named '{to_obj_name}' was created."
             else:
                 string = "There was an error copying %s."
         else:
@@ -346,13 +337,12 @@ class CmdCopy(ObjManipCommand):
                     if not to_obj_location:
                         return
 
-                copiedobj = ObjectDB.objects.copy_object(
+                if copiedobj := ObjectDB.objects.copy_object(
                     from_obj,
                     new_key=to_obj_name,
                     new_location=to_obj_location,
                     new_aliases=to_obj_aliases,
-                )
-                if copiedobj:
+                ):
                     string = (
                         f"Copied {from_obj_name} to '{to_obj_name}' (aliases: {to_obj_aliases})."
                     )
@@ -458,10 +448,7 @@ class CmdCpAttr(ObjManipCommand):
             caller.msg("You have to supply both source object and target(s).")
             return
         # copy to all to_obj:ects
-        if "move" in self.switches:
-            clear = True
-        else:
-            clear = False
+        clear = "move" in self.switches
         if not self.check_from_attr(from_obj, from_obj_attrs[0], clear=clear):
             return
 
@@ -493,7 +480,7 @@ class CmdCpAttr(ObjManipCommand):
                     continue
                 value = self.get_attr(from_obj, from_attr)
                 to_obj.attributes.add(to_attr, value)
-                if clear and not (from_obj == to_obj and from_attr == to_attr):
+                if clear and (from_obj != to_obj or from_attr != to_attr):
                     from_obj.attributes.remove(from_attr)
                     result.append(
                         f"\nMoved {from_obj.name}.{from_attr} -> {to_obj_name}.{to_attr}. (value:"
@@ -544,9 +531,9 @@ class CmdMvAttr(ObjManipCommand):
 
         # simply use cpattr for all the functionality
         if "copy" in self.switches:
-            self.execute_cmd("cpattr %s" % self.args)
+            self.execute_cmd(f"cpattr {self.args}")
         else:
-            self.execute_cmd("cpattr/move %s" % self.args)
+            self.execute_cmd(f"cpattr/move {self.args}")
 
 
 class CmdCreate(ObjManipCommand):
@@ -624,10 +611,9 @@ class CmdCreate(ObjManipCommand):
             # set a default desc
             if not obj.db.desc:
                 obj.db.desc = "You see nothing special."
-            if "drop" in self.switches:
-                if caller.location:
-                    obj.home = caller.location
-                    obj.move_to(caller.location, quiet=True, move_type="drop")
+            if "drop" in self.switches and caller.location:
+                obj.home = caller.location
+                obj.move_to(caller.location, quiet=True, move_type="drop")
         if string:
             caller.msg(string)
 
@@ -819,7 +805,7 @@ class CmdDestroy(COMMAND_DEFAULT_CLASS):
                 dmin, dmax = [utils.dbref(part, reqhash=False) for part in objname.split("-", 1)]
                 if dmin and dmax:
                     for dbref in range(int(dmin), int(dmax + 1)):
-                        obj = caller.search("#" + str(dbref))
+                        obj = caller.search(f"#{str(dbref)}")
                         if obj:
                             objs.append(obj)
                     continue
@@ -909,8 +895,10 @@ class CmdDig(ObjManipCommand):
         caller = self.caller
 
         if not self.lhs:
-            string = "Usage: dig[/teleport] <roomname>[;alias;alias...][:parent] [= <exit_there>"
-            string += "[;alias;alias..][:parent]] "
+            string = (
+                "Usage: dig[/teleport] <roomname>[;alias;alias...][:parent] [= <exit_there>"
+                + "[;alias;alias..][:parent]] "
+            )
             string += "[, <exit_back_here>[;alias;alias..][:parent]]"
             caller.msg(string)
             return
@@ -935,7 +923,7 @@ class CmdDig(ObjManipCommand):
         new_room.locks.add(lockstring)
         alias_string = ""
         if new_room.aliases.all():
-            alias_string = " (%s)" % ", ".join(new_room.aliases.all())
+            alias_string = f' ({", ".join(new_room.aliases.all())})'
         room_string = (
             f"Created room {new_room}({new_room.dbref}){alias_string} of type {typeclass}."
         )
@@ -968,7 +956,7 @@ class CmdDig(ObjManipCommand):
                 )
                 alias_string = ""
                 if new_to_exit.aliases.all():
-                    alias_string = " (%s)" % ", ".join(new_to_exit.aliases.all())
+                    alias_string = f' ({", ".join(new_to_exit.aliases.all())})'
                 exit_to_string = (
                     f"\nCreated Exit from {location.name} to {new_room.name}:"
                     f" {new_to_exit}({new_to_exit.dbref}){alias_string}."
@@ -998,7 +986,7 @@ class CmdDig(ObjManipCommand):
                 )
                 alias_string = ""
                 if new_back_exit.aliases.all():
-                    alias_string = " (%s)" % ", ".join(new_back_exit.aliases.all())
+                    alias_string = f' ({", ".join(new_back_exit.aliases.all())})'
                 exit_back_string = (
                     f"\nCreated Exit back from {new_room.name} to {location.name}:"
                     f" {new_back_exit}({new_back_exit.dbref}){alias_string}."
@@ -1072,9 +1060,7 @@ class CmdTunnel(COMMAND_DEFAULT_CLASS):
         exitshort = self.lhs.split(":")[0]
 
         if exitshort not in self.directions:
-            string = "tunnel can only understand the following directions: %s." % ",".join(
-                sorted(self.directions.keys())
-            )
+            string = f'tunnel can only understand the following directions: {",".join(sorted(self.directions.keys()))}.'
             string += "\n(use dig for more freedom)"
             self.caller.msg(string)
             return
@@ -1092,17 +1078,9 @@ class CmdTunnel(COMMAND_DEFAULT_CLASS):
             exitshort += exit_typeclass
             backshort += exit_typeclass
 
-        roomname = "Some place"
-        if self.rhs:
-            roomname = self.rhs  # this may include aliases; that's fine.
-
-        telswitch = ""
-        if "tel" in self.switches:
-            telswitch = "/teleport"
-        backstring = ""
-        if "oneway" not in self.switches:
-            backstring = f", {backname};{backshort}"
-
+        roomname = self.rhs if self.rhs else "Some place"
+        telswitch = "/teleport" if "tel" in self.switches else ""
+        backstring = "" if "oneway" in self.switches else f", {backname};{backshort}"
         # build the string we will use to call dig
         digstring = f"dig{telswitch} {roomname} = {exitname};{exitshort}{backstring}"
         self.execute_cmd(digstring)
@@ -1165,15 +1143,13 @@ class CmdLink(COMMAND_DEFAULT_CLASS):
                 self.caller.msg("Cannot link an object to itself.")
                 return
 
-            string = ""
             note = (
                 "Note: %s(%s) did not have a destination set before. Make sure you linked the right"
                 " thing."
             )
-            if not obj.destination:
-                string = note % (obj.name, obj.dbref)
+            string = note % (obj.name, obj.dbref) if not obj.destination else ""
             if "twoway" in self.switches:
-                if not (target.location and obj.location):
+                if not target.location or not obj.location:
                     string = (
                         f"To create a two-way link, {obj} and {target} must both have a location"
                     )
@@ -1193,23 +1169,16 @@ class CmdLink(COMMAND_DEFAULT_CLASS):
                 string += f"\nLink created {obj.name} -> {target} (one way)."
 
         elif self.rhs is None:
-            # this means that no = was given (otherwise rhs
-            # would have been an empty string). So we inspect
-            # the home/destination on object
-            dest = obj.destination
-            if dest:
-                string = f"{obj.name} is an exit to {dest.name}."
-            else:
-                string = f"{obj.name} is not an exit. Its home location is {obj.home}."
-
+            string = (
+                f"{obj.name} is an exit to {dest.name}."
+                if (dest := obj.destination)
+                else f"{obj.name} is not an exit. Its home location is {obj.home}."
+            )
+        elif obj.destination:
+            obj.destination = None
+            string = f"Former exit {obj.name} no longer links anywhere."
         else:
-            # We gave the command link 'obj = ' which means we want to
-            # clear destination.
-            if obj.destination:
-                obj.destination = None
-                string = f"Former exit {obj.name} no longer links anywhere."
-            else:
-                string = f"{obj.name} had no destination to unlink."
+            string = f"{obj.name} had no destination to unlink."
         # give feedback
         caller.msg(string.strip())
 
@@ -1237,9 +1206,9 @@ class CmdUnLink(CmdLink):
         and call func in CmdLink
         """
 
-        caller = self.caller
-
         if not self.args:
+            caller = self.caller
+
             caller.msg("Usage: unlink <object>")
             return
 
@@ -1280,27 +1249,22 @@ class CmdSetHome(CmdLink):
         obj = self.caller.search(self.lhs, global_search=True)
         if not obj:
             return
-        if not self.rhs:
-            # just view
-            home = obj.home
-            if not home:
-                string = "This object has no home location set!"
-            else:
-                string = f"{obj}'s current home is {home}({home.dbref})."
-        else:
+        if self.rhs:
             # set a home location
             new_home = self.caller.search(self.rhs, global_search=True)
             if not new_home:
                 return
             old_home = obj.home
             obj.home = new_home
-            if old_home:
-                string = (
-                    f"Home location of {obj} was changed from {old_home}({old_home.dbref} to"
-                    f" {new_home}({new_home.dbref})."
-                )
-            else:
-                string = f"Home location of {obj} was set to {new_home}({new_home.dbref})."
+            string = (
+                f"Home location of {obj} was changed from {old_home}({old_home.dbref} to {new_home}({new_home.dbref})."
+                if old_home
+                else f"Home location of {obj} was set to {new_home}({new_home.dbref})."
+            )
+        elif home := obj.home:
+            string = f"{obj}'s current home is {home}({home.dbref})."
+        else:
+            string = "This object has no home location set!"
         self.caller.msg(string)
 
 
@@ -1401,7 +1365,7 @@ class CmdName(ObjManipCommand):
         astring = ""
         if aliases:
             [obj.aliases.add(alias) for alias in aliases]
-            astring = " (%s)" % ", ".join(aliases)
+            astring = f' ({", ".join(aliases)})'
         # fix for exits - we need their exit-command to change name too
         if obj.destination:
             obj.flush_from_cache(force=True)
@@ -1454,9 +1418,7 @@ class CmdOpen(ObjManipCommand):
                     "to an exit, you must assign an object to the 'destination' property first."
                 )
                 return None
-            # we are re-linking an old exit.
-            old_destination = exit_obj.destination
-            if old_destination:
+            if old_destination := exit_obj.destination:
                 string = f"Exit {exit_name} already exists."
                 if old_destination.id != destination.id:
                     # reroute the old exit.
@@ -1489,7 +1451,7 @@ class CmdOpen(ObjManipCommand):
                 string = (
                     ""
                     if not exit_aliases
-                    else " (aliases: %s)" % ", ".join([str(e) for e in exit_aliases])
+                    else f' (aliases: {", ".join([str(e) for e in exit_aliases])})'
                 )
                 string = (
                     f"Created new Exit '{exit_name}' from {location.name} to"
@@ -1584,8 +1546,7 @@ def _convert_from_string(cmd, strobj):
         cmd.caller.msg(string)
         return strobj
     except Exception as err:
-        string = f"|RUnknown error in evaluating Attribute: {err}"
-        return string
+        return f"|RUnknown error in evaluating Attribute: {err}"
 
 
 class CmdSetAttribute(ObjManipCommand):
@@ -1747,17 +1708,14 @@ class CmdSetAttribute(ObjManipCommand):
                             del deep[del_key]
                         except (IndexError, KeyError, TypeError):
                             continue
-                    return f"\nDeleted attribute {obj.name}/|w{attr}|n [category:{category}]."
+                elif exists := obj.attributes.has(key, category):
+                    obj.attributes.remove(attr, category=category)
                 else:
-                    exists = obj.attributes.has(key, category)
-                    if exists:
-                        obj.attributes.remove(attr, category=category)
-                        return f"\nDeleted attribute {obj.name}/|w{attr}|n [category:{category}]."
-                    else:
-                        return (
-                            f"\nNo attribute {obj.name}/|w{attr}|n [category: {category}] "
-                            "was found to delete."
-                        )
+                    return (
+                        f"\nNo attribute {obj.name}/|w{attr}|n [category: {category}] "
+                        "was found to delete."
+                    )
+                return f"\nDeleted attribute {obj.name}/|w{attr}|n [category:{category}]."
         error = f"\nNo attribute {obj.name}/|w{attr}|n [category: {category}] was found to delete."
         if nested:
             error += " (Nested lookups attempted)"
@@ -1830,7 +1788,7 @@ class CmdSetAttribute(ObjManipCommand):
                 # we set empty buffer on nonexisting Attribute because otherwise
                 # we'd always have the string "None" in the buffer to start with
                 old_value = ""
-            return str(old_value)  # we already confirmed we are ok with this
+            return old_value
 
         def save(caller, buf):
             """Called when editor saves its buffer."""
@@ -1869,11 +1827,11 @@ class CmdSetAttribute(ObjManipCommand):
         _AT_SEARCH_RESULT = variable_from_module(*settings.SEARCH_AT_RESULT.rsplit(".", 1))
         caller = self.caller
         if objname.startswith("*") or "account" in self.switches:
-            found_obj = caller.search_account(objname.lstrip("*"))
+            return caller.search_account(objname.lstrip("*"))
         elif "script" in self.switches:
-            found_obj = _AT_SEARCH_RESULT(search.search_script(objname), caller)
+            return _AT_SEARCH_RESULT(search.search_script(objname), caller)
         elif "channel" in self.switches:
-            found_obj = _AT_SEARCH_RESULT(search.search_channel(objname), caller)
+            return _AT_SEARCH_RESULT(search.search_channel(objname), caller)
         else:
             global_search = True
             if "char" in self.switches or "character" in self.switches:
@@ -1885,8 +1843,7 @@ class CmdSetAttribute(ObjManipCommand):
             else:
                 global_search = False
                 typeclass = None
-            found_obj = caller.search(objname, global_search=global_search, typeclass=typeclass)
-        return found_obj
+            return caller.search(objname, global_search=global_search, typeclass=typeclass)
 
     def func(self):
         """Implement the set attribute - a limited form of py."""
@@ -1909,10 +1866,11 @@ class CmdSetAttribute(ObjManipCommand):
         if not self.check_obj(obj):
             return
 
-        result = []
         if "edit" in self.switches:
             # edit in the line editor
-            if not (obj.access(self.caller, "control") or obj.access(self.caller, "edit")):
+            if not obj.access(self.caller, "control") and not obj.access(
+                self.caller, "edit"
+            ):
                 caller.msg(f"You don't have permission to edit {obj.key}.")
                 return
 
@@ -1928,30 +1886,8 @@ class CmdSetAttribute(ObjManipCommand):
                 return
             self.edit_handler(obj, attrs[0], caller)
             return
-        if not value:
-            if self.rhs is None:
-                # no = means we inspect the attribute(s)
-                if not attrs:
-                    attrs = [
-                        attr.key
-                        for attr in obj.attributes.get(
-                            category=None, return_obj=True, return_list=True
-                        )
-                    ]
-                for attr in attrs:
-                    if not self.check_attr(obj, attr, category):
-                        continue
-                    result.append(self.view_attr(obj, attr, category))
-            else:
-                # deleting the attribute(s)
-                if not (obj.access(self.caller, "control") or obj.access(self.caller, "edit")):
-                    caller.msg(f"You don't have permission to edit {obj.key}.")
-                    return
-                for attr in attrs:
-                    if not self.check_attr(obj, attr, category):
-                        continue
-                    result.append(self.rm_attr(obj, attr, category))
-        else:
+        result = []
+        if value:
             # setting attribute(s). Make sure to convert to real Python type before saving.
             # add support for $dbref() and $search() in set argument
             global _ATTRFUNCPARSER
@@ -1963,7 +1899,9 @@ class CmdSetAttribute(ObjManipCommand):
                     }
                 )
 
-            if not (obj.access(self.caller, "control") or obj.access(self.caller, "edit")):
+            if not obj.access(self.caller, "control") and not obj.access(
+                self.caller, "edit"
+            ):
                 caller.msg(f"You don't have permission to edit {obj.key}.")
                 return
             for attr in attrs:
@@ -1974,10 +1912,9 @@ class CmdSetAttribute(ObjManipCommand):
                 if hasattr(parsed_value, "access"):
                     # if this is an object we must have the right to read it, if so,
                     # we will not convert it to a string
-                    if not (
-                        parsed_value.access(caller, "control")
-                        or parsed_value.access(self.caller, "edit")
-                    ):
+                    if not parsed_value.access(
+                        caller, "control"
+                    ) and not parsed_value.access(self.caller, "edit"):
                         caller.msg(
                             f"You don't have permission to set object with identifier '{value}'."
                         )
@@ -1986,6 +1923,32 @@ class CmdSetAttribute(ObjManipCommand):
                 else:
                     value = _convert_from_string(self, value)
                 result.append(self.set_attr(obj, attr, value, category))
+        elif self.rhs is None:
+            # no = means we inspect the attribute(s)
+            if not attrs:
+                attrs = [
+                    attr.key
+                    for attr in obj.attributes.get(
+                        category=None, return_obj=True, return_list=True
+                    )
+                ]
+            result.extend(
+                self.view_attr(obj, attr, category)
+                for attr in attrs
+                if self.check_attr(obj, attr, category)
+            )
+        else:
+                # deleting the attribute(s)
+            if not obj.access(self.caller, "control") and not obj.access(
+                self.caller, "edit"
+            ):
+                caller.msg(f"You don't have permission to edit {obj.key}.")
+                return
+            result.extend(
+                self.rm_attr(obj, attr, category)
+                for attr in attrs
+                if self.check_attr(obj, attr, category)
+            )
         # check if anything was done
         if not result:
             caller.msg(

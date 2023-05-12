@@ -205,34 +205,33 @@ def _call_or_get(value, menu=None, choice=None, string=None, obj=None, caller=No
             def on_leave(caller, room): # note that room will contain `obj`
 
     """
-    if callable(value):
-        # Check the function arguments
-        kwargs = {}
-        spec = getfullargspec(value)
-        args = spec.args
-        if spec.varkw:
-            kwargs.update(dict(menu=menu, choice=choice, string=string, obj=obj, caller=caller))
-        else:
-            if "menu" in args:
-                kwargs["menu"] = menu
-            if "choice" in args:
-                kwargs["choice"] = choice
-            if "string" in args:
-                kwargs["string"] = string
-            if "obj" in args:
-                kwargs["obj"] = obj
-            if "caller" in args:
-                kwargs["caller"] = caller
+    if not callable(value):
+        return value
+    # Check the function arguments
+    kwargs = {}
+    spec = getfullargspec(value)
+    args = spec.args
+    if spec.varkw:
+        kwargs |= dict(menu=menu, choice=choice, string=string, obj=obj, caller=caller)
+    else:
+        if "menu" in args:
+            kwargs["menu"] = menu
+        if "choice" in args:
+            kwargs["choice"] = choice
+        if "string" in args:
+            kwargs["string"] = string
+        if "obj" in args:
+            kwargs["obj"] = obj
+        if "caller" in args:
+            kwargs["caller"] = caller
 
-        # Fill missing arguments
-        for arg in args:
-            if arg not in kwargs:
-                kwargs[arg] = obj
+    # Fill missing arguments
+    for arg in args:
+        if arg not in kwargs:
+            kwargs[arg] = obj
 
-        # Call the function and return its return value
-        return value(**kwargs)
-
-    return value
+    # Call the function and return its return value
+    return value(**kwargs)
 
 
 # Helper functions, to be used in menu choices
@@ -291,9 +290,7 @@ def menu_quit(caller, menu):
     """
     if caller is None or menu is None:
         log_err(
-            "The function `menu_quit` was called with missing arguments: caller={}, menu={}".format(
-                caller, menu
-            )
+            f"The function `menu_quit` was called with missing arguments: caller={caller}, menu={menu}"
         )
 
     if caller.cmdset.has(BuildingMenuCmdSet):
@@ -389,7 +386,7 @@ class CmdNoMatch(Command):
                     self.menu.move(choice.key)
                     return
 
-            self.msg("|rUnknown command: {}|n.".format(raw_string))
+            self.msg(f"|rUnknown command: {raw_string}|n.")
 
 
 class BuildingMenuCmdSet(CmdSet):
@@ -477,7 +474,7 @@ class Choice:
         self.obj = obj
 
     def __repr__(self):
-        return "<Choice (title={}, key={})>".format(self.title, self.key)
+        return f"<Choice (title={self.title}, key={self.key})>"
 
     @property
     def keys(self):
@@ -713,7 +710,7 @@ class BuildingMenu:
 
         if self.persistent:
             self.caller.db._building_menu = {
-                "class": type(self).__module__ + "." + type(self).__name__,
+                "class": f"{type(self).__module__}.{type(self).__name__}",
                 "obj": self.obj,
                 "title": self.title,
                 "keys": self.keys,
@@ -746,7 +743,7 @@ class BuildingMenu:
                 if choice.key:
                     self.cmds[choice.key] = choice
                 else:
-                    raise ValueError("Cannot guess the key for {}".format(choice))
+                    raise ValueError(f"Cannot guess the key for {choice}")
 
     def init(self, obj):
         """Create the sub-menu to edit the specified object.
@@ -836,9 +833,7 @@ class BuildingMenu:
 
         if key and key in self.cmds:
             raise ValueError(
-                "A conflict exists between {} and {}, both use key or alias {}".format(
-                    self.cmds[key], title, repr(key)
-                )
+                f"A conflict exists between {self.cmds[key]} and {title}, both use key or alias {repr(key)}"
             )
 
         if attr:
@@ -854,7 +849,9 @@ class BuildingMenu:
 
                         Current value: |c{{{obj_attr}}}|n
                 """.format(
-                    attr=attr, obj_attr="obj." + attr, back="|n or |y".join(self.keys_go_back)
+                    attr=attr,
+                    obj_attr=f"obj.{attr}",
+                    back="|n or |y".join(self.keys_go_back),
                 )
 
         choice = Choice(
@@ -968,34 +965,34 @@ class BuildingMenu:
             `keys_go_back` automatically.
 
         """
-        parents = list(self.parents)
-        if parents:
-            parent_class, parent_obj, parent_keys = parents[-1]
-            del parents[-1]
+        if not (parents := list(self.parents)):
+            return
+        parent_class, parent_obj, parent_keys = parents[-1]
+        del parents[-1]
 
-            if self.caller.cmdset.has(BuildingMenuCmdSet):
-                self.caller.cmdset.remove(BuildingMenuCmdSet)
+        if self.caller.cmdset.has(BuildingMenuCmdSet):
+            self.caller.cmdset.remove(BuildingMenuCmdSet)
 
-            try:
-                menu_class = class_from_module(parent_class)
-            except Exception:
-                log_trace(
-                    "BuildingMenu: attempting to load class {} failed".format(repr(parent_class))
-                )
-                return
+        try:
+            menu_class = class_from_module(parent_class)
+        except Exception:
+            log_trace(
+                f"BuildingMenu: attempting to load class {repr(parent_class)} failed"
+            )
+            return
 
             # Create the parent menu
-            try:
-                building_menu = menu_class(
-                    self.caller, parent_obj, keys=parent_keys, parents=tuple(parents)
-                )
-            except Exception:
-                log_trace(
-                    "An error occurred while creating building menu {}".format(repr(parent_class))
-                )
-                return
-            else:
-                return building_menu.open()
+        try:
+            building_menu = menu_class(
+                self.caller, parent_obj, keys=parent_keys, parents=tuple(parents)
+            )
+        except Exception:
+            log_trace(
+                f"An error occurred while creating building menu {repr(parent_class)}"
+            )
+            return
+        else:
+            return building_menu.open()
 
     def open_submenu(self, submenu_class, submenu_obj, parent_keys=None):
         """
@@ -1019,7 +1016,13 @@ class BuildingMenu:
         """
         parent_keys = parent_keys or []
         parents = list(self.parents)
-        parents.append((type(self).__module__ + "." + type(self).__name__, self.obj, parent_keys))
+        parents.append(
+            (
+                f"{type(self).__module__}.{type(self).__name__}",
+                self.obj,
+                parent_keys,
+            )
+        )
         if self.caller.cmdset.has(BuildingMenuCmdSet):
             self.caller.cmdset.remove(BuildingMenuCmdSet)
 
@@ -1028,7 +1031,7 @@ class BuildingMenu:
             menu_class = class_from_module(submenu_class)
         except Exception:
             log_trace(
-                "BuildingMenu: attempting to load class {} failed".format(repr(submenu_class))
+                f"BuildingMenu: attempting to load class {repr(submenu_class)} failed"
             )
             return
 
@@ -1037,7 +1040,7 @@ class BuildingMenu:
             building_menu = menu_class(self.caller, submenu_obj, parents=parents)
         except Exception:
             log_trace(
-                "An error occurred while creating building menu {}".format(repr(submenu_class))
+                f"An error occurred while creating building menu {repr(submenu_class)}"
             )
             return
         else:
@@ -1067,16 +1070,10 @@ class BuildingMenu:
             If that's the case, you will need to use this method.
 
         """
-        choice = self.current_choice
-        if choice:
+        if choice := self.current_choice:
             choice.leave("")
 
-        if not back:  # Move forward
-            if not key:
-                raise ValueError("you are asking to move forward, you should specify a key.")
-
-            self.keys.append(key)
-        else:  # Move backward
+        if back:  # Move backward
             if not self.keys:
                 raise ValueError(
                     "you already are at the top of the tree, you cannot move backward."
@@ -1084,9 +1081,13 @@ class BuildingMenu:
 
             del self.keys[-1]
 
+        elif not key:
+            raise ValueError("you are asking to move forward, you should specify a key.")
+
+        else:
+            self.keys.append(key)
         self._save()
-        choice = self.current_choice
-        if choice:
+        if choice := self.current_choice:
             choice.enter(string)
 
         if not quiet:
@@ -1122,9 +1123,9 @@ class BuildingMenu:
         pos = clear_title.find(choice.key.lower())
         ret = " "
         if pos >= 0:
-            ret += title[:pos] + "[|y" + choice.key.title() + "|n]" + title[pos + len(choice.key) :]
+            ret += f"{title[:pos]}[|y{choice.key.title()}|n]{title[pos + len(choice.key):]}"
         else:
-            ret += "[|y" + choice.key.title() + "|n] " + title
+            ret += f"[|y{choice.key.title()}|n] {title}"
 
         if choice.glance:
             glance = _call_or_get(
@@ -1132,7 +1133,7 @@ class BuildingMenu:
             )
             glance = glance.format(obj=self.obj, caller=self.caller)
 
-            ret += ": " + glance
+            ret += f": {glance}"
 
         return ret
 
@@ -1160,41 +1161,36 @@ class BuildingMenu:
             saved in the caller, but the object itself cannot be found.
 
         """
-        menu = caller.db._building_menu
-        if menu:
-            class_name = menu.get("class")
-            if not class_name:
-                log_err(
-                    "BuildingMenu: on caller {}, a persistent attribute holds building menu "
-                    "data, but no class could be found to restore the menu".format(caller)
-                )
-                return
+        if not (menu := caller.db._building_menu):
+            return
+        class_name = menu.get("class")
+        if not class_name:
+            log_err(
+                f"BuildingMenu: on caller {caller}, a persistent attribute holds building menu data, but no class could be found to restore the menu"
+            )
+            return
 
-            try:
-                menu_class = class_from_module(class_name)
-            except Exception:
-                log_trace(
-                    "BuildingMenu: attempting to load class {} failed".format(repr(class_name))
-                )
-                return
+        try:
+            menu_class = class_from_module(class_name)
+        except Exception:
+            log_trace(f"BuildingMenu: attempting to load class {repr(class_name)} failed")
+            return
 
-            # Create the menu
-            obj = menu.get("obj")
-            keys = menu.get("keys")
-            title = menu.get("title", "")
-            parents = menu.get("parents")
-            persistent = menu.get("persistent", False)
-            try:
-                building_menu = menu_class(
-                    caller, obj, title=title, keys=keys, parents=parents, persistent=persistent
-                )
-            except Exception:
-                log_trace(
-                    "An error occurred while creating building menu {}".format(repr(class_name))
-                )
-                return
+        # Create the menu
+        obj = menu.get("obj")
+        keys = menu.get("keys")
+        title = menu.get("title", "")
+        parents = menu.get("parents")
+        persistent = menu.get("persistent", False)
+        try:
+            building_menu = menu_class(
+                caller, obj, title=title, keys=keys, parents=parents, persistent=persistent
+            )
+        except Exception:
+            log_trace(f"An error occurred while creating building menu {repr(class_name)}")
+            return
 
-            return building_menu
+        return building_menu
 
 
 # Generic building menu and command

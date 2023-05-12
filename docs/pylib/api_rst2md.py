@@ -21,7 +21,7 @@ def _rst2md(filename_rst):
 
     # rename .rst file to .md file
     filename, _ = filename_rst.rsplit(".", 1)
-    filename_md = filename + ".md"
+    filename_md = f"{filename}.md"
     rename(filename_rst, filename_md)
 
 
